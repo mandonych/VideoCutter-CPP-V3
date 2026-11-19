@@ -1,0 +1,27 @@
+# Папки сборки CMake и Visual Studio
+build/
+out/
+.vs/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+
+# Кэш VSCodium и clangd
+.cache/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+
+# Скомпилированные бинарники и объектные файлы
+*.exe
+*.obj
+*.pdb
+*.ilk
+*.lib
+*.dll
+*.res
+
+# Бинарники FFmpeg (обычно не хранят в Git из-за большого веса)
+bin/*.exe

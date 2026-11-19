@@ -4,6 +4,9 @@
 
 #include "Theme.h"
 
+// Сообщение о нажатии Enter в поле ввода времени
+constexpr UINT WM_TIME_ENTER = WM_APP + 10;
+
 // Compatibility aliases for existing UI code
 constexpr COLORREF BG_COLOR = Theme::Background;
 constexpr COLORREF PANEL_COLOR = Theme::Panel;
@@ -45,7 +48,6 @@ extern HFONT hTitleFont;
 extern HBRUSH hBgBrush;
 extern HBRUSH hPanelBrush;
 extern HBRUSH hEditBrush;
-
 
 void SetFont(HWND hwnd, HFONT font);
 

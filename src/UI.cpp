@@ -30,14 +30,6 @@ HWND CreateLabel(HWND parent, const wchar_t *text)
         parent, nullptr, nullptr, nullptr);
 
     SetFont(h, hFont);
-
-    // Внутренние отступы текста
-    SendMessageW(
-        h,
-        EM_SETMARGINS,
-        EC_LEFTMARGIN | EC_RIGHTMARGIN,
-        MAKELONG(10, 10));
-
     return h;
 }
 
@@ -47,7 +39,7 @@ LRESULT CALLBACK EditSubclassProc(
     WPARAM wParam,
     LPARAM lParam,
     UINT_PTR subclassId,
-    DWORD_PTR refData)
+    DWORD_PTR)
 {
     if (message == WM_MOUSEMOVE)
     {
@@ -69,6 +61,18 @@ LRESULT CALLBACK EditSubclassProc(
         message == WM_KILLFOCUS)
     {
         InvalidateRect(hwnd, nullptr, TRUE);
+    }
+
+    // Перехват Enter: блокируем перенос строки (из-за ES_MULTILINE) и уведомляем главное окно
+    if (message == WM_KEYDOWN && wParam == VK_RETURN)
+    {
+        PostMessageW(GetParent(hwnd), WM_TIME_ENTER, subclassId, (LPARAM)hwnd);
+        return 0;
+    }
+
+    if (message == WM_CHAR && wParam == L'\r')
+    {
+        return 0;
     }
 
     LRESULT result = DefSubclassProc(
@@ -128,6 +132,39 @@ LRESULT CALLBACK EditSubclassProc(
     return result;
 }
 
+LRESULT CALLBACK ButtonSubclassProc(
+    HWND hwnd,
+    UINT message,
+    WPARAM wParam,
+    LPARAM lParam,
+    UINT_PTR subclassId,
+    DWORD_PTR)
+{
+    if (message == WM_MOUSEMOVE)
+    {
+        TRACKMOUSEEVENT tme{};
+        tme.cbSize = sizeof(tme);
+        tme.dwFlags = TME_LEAVE;
+        tme.hwndTrack = hwnd;
+        TrackMouseEvent(&tme);
+
+        InvalidateRect(hwnd, nullptr, FALSE);
+    }
+    else if (message == WM_MOUSELEAVE)
+    {
+        InvalidateRect(hwnd, nullptr, FALSE);
+    }
+    else if (message == WM_NCDESTROY)
+    {
+        RemoveWindowSubclass(
+            hwnd,
+            ButtonSubclassProc,
+            subclassId);
+    }
+
+    return DefSubclassProc(hwnd, message, wParam, lParam);
+}
+
 void CenterEditTextVertical(HWND h)
 {
     RECT rect{};
@@ -161,9 +198,9 @@ HWND CreateEdit(HWND parent, int id, const wchar_t *value)
     HWND h = CreateWindowExW(
         0, L"EDIT", value,
         WS_CHILD | WS_VISIBLE |
-    ES_AUTOHSCROLL |
-    ES_MULTILINE |
-    ES_AUTOVSCROLL,
+            ES_AUTOHSCROLL |
+            ES_MULTILINE |
+            ES_AUTOVSCROLL,
         0, 0, 100, 35,
         parent,
         (HMENU)(INT_PTR)id,
@@ -175,7 +212,7 @@ HWND CreateEdit(HWND parent, int id, const wchar_t *value)
         EditSubclassProc,
         id,
         0);
-        CenterEditTextVertical(h);
+    CenterEditTextVertical(h);
     return h;
 }
 
@@ -190,14 +227,16 @@ HWND CreateButton(HWND parent, int id, const wchar_t *text)
         nullptr, nullptr);
 
     SetFont(h, hFont);
+    SetWindowSubclass(
+        h,
+        ButtonSubclassProc,
+        id,
+        0);
     return h;
 }
 
-void Layout(HWND hwnd)
+void Layout(HWND)
 {
-    // Fixed client area: 1100 x 760
-    constexpr int margin = 20;
-
     // =====================================
     // LEFT PANEL — Source and Output
     // =====================================
@@ -257,32 +296,32 @@ void Layout(HWND hwnd)
         SWP_NOZORDER);
 
     // =====================================
-// BOTTOM PANEL — Progress and Cut
-// =====================================
+    // BOTTOM PANEL — Progress and Cut
+    // =====================================
 
-SetWindowPos(
-    hCut, nullptr,
-    820, 610, 240, 65,
-    SWP_NOZORDER);
+    SetWindowPos(
+        hCut, nullptr,
+        820, 610, 240, 65,
+        SWP_NOZORDER);
 
-SetWindowPos(
-    hProgress, nullptr,
-    40, 635, 700, 14,
-    SWP_NOZORDER);
+    SetWindowPos(
+        hProgress, nullptr,
+        40, 635, 700, 14,
+        SWP_NOZORDER);
 
-// =====================================
-// FOOTER — Status message
-// =====================================
+    // =====================================
+    // FOOTER — Status message
+    // =====================================
 
-SetWindowPos(
-    hStatus, nullptr,
-    500, 720, 585, 24,
-    SWP_NOZORDER);
+    SetWindowPos(
+        hStatus, nullptr,
+        500, 720, 585, 24,
+        SWP_NOZORDER);
 
-        CenterEditTextVertical(hInput);
-CenterEditTextVertical(hOutput);
-CenterEditTextVertical(hStart);
-CenterEditTextVertical(hEnd);
+    CenterEditTextVertical(hInput);
+    CenterEditTextVertical(hOutput);
+    CenterEditTextVertical(hStart);
+    CenterEditTextVertical(hEnd);
 }
 
 void DrawButton(const DRAWITEMSTRUCT *dis)
@@ -307,8 +346,22 @@ void DrawButton(const DRAWITEMSTRUCT *dis)
     else if (dis->itemState & ODS_SELECTED)
     {
         background = primary
-                         ? RGB(96, 124, 181)
+                         ? Theme::ButtonPressed
                          : RGB(73, 73, 105);
+    }
+    else
+    {
+        // Проверка наведения курсора (Hover)
+        POINT cursor{};
+        GetCursorPos(&cursor);
+        ScreenToClient(dis->hwndItem, &cursor);
+
+        if (PtInRect(&dis->rcItem, cursor))
+        {
+            background = primary
+                             ? Theme::ButtonHover
+                             : Theme::Border;
+        }
     }
 
     HBRUSH brush = CreateSolidBrush(background);
@@ -321,6 +374,7 @@ void DrawButton(const DRAWITEMSTRUCT *dis)
     SetTextColor(dis->hDC, textColor);
 
     wchar_t text[128]{};
+
 
     GetWindowTextW(dis->hwndItem, text, 128);
 

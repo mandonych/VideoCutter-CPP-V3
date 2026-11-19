@@ -1,4 +1,7 @@
-﻿#include "App.h"
+﻿#include "Utils.h"
+
+
+#include "App.h"
 #include "UI.h"
 #include "Theme.h"
 #include "VideoInfo.h"
@@ -92,7 +95,7 @@ std::thread cutThread;
 std::atomic<bool> isCutting{false};
 
 // Функции из main.cpp
-std::wstring GetExecutablePath();
+
 
 std::wstring GetControlText(HWND hwnd);
 
@@ -700,15 +703,7 @@ LRESULT CALLBACK WindowProc(
         hwnd, message, wParam, lParam);
 }
 
-std::wstring GetExecutablePath()
-{
-    wchar_t buffer[MAX_PATH]{};
-    GetModuleFileNameW(nullptr, buffer, MAX_PATH);
 
-    return std::filesystem::path(buffer)
-        .parent_path()
-        .wstring();
-}
 
 std::wstring GetControlText(HWND control)
 {

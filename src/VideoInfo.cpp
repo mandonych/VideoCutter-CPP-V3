@@ -1,21 +1,11 @@
-
 #include "VideoInfo.h"
+#include "Utils.h"
 
 #include <windows.h>
 #include <filesystem>
 #include <vector>
 
 namespace {
-
-std::wstring GetExecutablePath()
-{
-    wchar_t buffer[MAX_PATH]{};
-    GetModuleFileNameW(nullptr, buffer, MAX_PATH);
-
-    return std::filesystem::path(buffer)
-        .parent_path()
-        .wstring();
-}
 
 std::wstring GetProbeValue(
     const std::wstring& output,
@@ -104,15 +94,7 @@ bool RunFFprobe(
         0
     );
 
-    HANDLE nullHandle = CreateFileW(
-        L"NUL",
-        GENERIC_WRITE,
-        FILE_SHARE_READ | FILE_SHARE_WRITE,
-        &sa,
-        OPEN_EXISTING,
-        FILE_ATTRIBUTE_NORMAL,
-        nullptr
-    );
+    HANDLE nullHandle = OpenNullDevice(&sa);
 
     STARTUPINFOW si{};
     si.cb = sizeof(si);
@@ -143,7 +125,8 @@ bool RunFFprobe(
     );
 
     CloseHandle(writePipe);
-    CloseHandle(nullHandle);
+    if (nullHandle != INVALID_HANDLE_VALUE)
+        CloseHandle(nullHandle);
 
     if (!created) {
         CloseHandle(readPipe);

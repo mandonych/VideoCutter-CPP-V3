@@ -1,44 +1,44 @@
 #include "VideoProcessor.h"
+#include "Utils.h"
 
 #include <string>
 #include <algorithm>
-
 #include <windows.h>
 #include <objidl.h>
 #include <gdiplus.h>
-
 #include <vector>
 #include <cstring>
 #include <filesystem>
-
-
-
-namespace {
-
-std::wstring GetExecutablePath()
-{
-    wchar_t buffer[MAX_PATH]{};
-    GetModuleFileNameW(nullptr, buffer, MAX_PATH);
-
-    return std::filesystem::path(buffer)
-        .parent_path()
-        .wstring();
-}
-
-} // namespace
+#include <thread>
+#include <cstdio>
 
 Gdiplus::Bitmap* ExtractFrame(
     const std::wstring& filename,
     double timeSeconds)
 {
-    std::wstring ffmpeg =
-        GetExecutablePath() + L"\\bin\\ffmpeg.exe";
+    std::filesystem::path ffmpegPath =
+        std::filesystem::path(GetExecutablePath()) / L"bin" / L"ffmpeg.exe";
+
+    if (!std::filesystem::exists(ffmpegPath))
+        return nullptr;
+
+    wchar_t timeBuf[32]{};
+    swprintf_s(timeBuf, L"%.3f", timeSeconds);
+    // Гарантируем точку как разделитель независимо от локали ОС
+    for (wchar_t& ch : timeBuf)
+    {
+        if (ch == L',')
+            ch = L'.';
+    }
 
     std::wstring command =
-        L"\"" + ffmpeg + L"\""
-        L" -ss " + std::to_wstring(timeSeconds) +
+        L"\"" + ffmpegPath.wstring() + L"\""
+        L" -ss " + timeBuf +
         L" -i \"" + filename + L"\""
         L" -frames:v 1 -f image2pipe -vcodec bmp pipe:1";
+
+    std::vector<wchar_t> cmd(command.begin(), command.end());
+    cmd.push_back(L'\0');
 
     SECURITY_ATTRIBUTES sa{};
     sa.nLength = sizeof(sa);
@@ -52,18 +52,20 @@ Gdiplus::Bitmap* ExtractFrame(
 
     SetHandleInformation(readPipe, HANDLE_FLAG_INHERIT, 0);
 
+    HANDLE nullHandle = OpenNullDevice(&sa);
+
     STARTUPINFOW si{};
     si.cb = sizeof(si);
     si.dwFlags = STARTF_USESTDHANDLES;
     si.hStdOutput = writePipe;
-    si.hStdError = GetStdHandle(STD_ERROR_HANDLE);
+    si.hStdError = nullHandle;
     si.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
 
     PROCESS_INFORMATION pi{};
 
     BOOL created = CreateProcessW(
         nullptr,
-        command.data(),
+        cmd.data(),
         nullptr,
         nullptr,
         TRUE,
@@ -75,6 +77,8 @@ Gdiplus::Bitmap* ExtractFrame(
     );
 
     CloseHandle(writePipe);
+    if (nullHandle != INVALID_HANDLE_VALUE)
+        CloseHandle(nullHandle);
 
     if (!created)
     {
@@ -132,6 +136,30 @@ Gdiplus::Bitmap* ExtractFrame(
     return bitmap;
 }
 
+void ExtractFrameAsync(
+    HWND hwnd,
+    int controlId,
+    uint64_t requestId,
+    std::wstring filename,
+    double timeSeconds)
+{
+    std::thread([hwnd, controlId, requestId, filename = std::move(filename), timeSeconds]() {
+        Gdiplus::Bitmap* bmp = ExtractFrame(filename, timeSeconds);
+
+        auto* result = new PreviewResult{
+            controlId,
+            requestId,
+            bmp
+        };
+
+        if (!PostMessageW(hwnd, WM_PREVIEW_READY, 0, reinterpret_cast<LPARAM>(result)))
+        {
+            delete bmp;
+            delete result;
+        }
+    }).detach();
+}
+
 void RunCutProcess(
     const std::wstring& command,
     const std::wstring& ffmpeg,
@@ -156,11 +184,13 @@ void RunCutProcess(
 
     SetHandleInformation(readPipe, HANDLE_FLAG_INHERIT, 0);
 
+    HANDLE nullHandle = OpenNullDevice(&sa);
+
     STARTUPINFOW si{};
     si.cb = sizeof(si);
     si.dwFlags = STARTF_USESTDHANDLES;
     si.hStdOutput = writePipe;
-    si.hStdError = GetStdHandle(STD_ERROR_HANDLE);
+    si.hStdError = nullHandle;
     si.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
 
     PROCESS_INFORMATION pi{};
@@ -179,11 +209,15 @@ void RunCutProcess(
     {
         CloseHandle(readPipe);
         CloseHandle(writePipe);
+        if (nullHandle != INVALID_HANDLE_VALUE)
+            CloseHandle(nullHandle);
         PostMessageW(hwnd, WM_CUT_FINISHED, 2, 0);
         return;
     }
 
     CloseHandle(writePipe);
+    if (nullHandle != INVALID_HANDLE_VALUE)
+        CloseHandle(nullHandle);
 
     std::string buffer;
     char chunk[4096];

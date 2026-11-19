@@ -1,8 +1,7 @@
-
 cmake_minimum_required(VERSION 3.25)
 
 project(VideoCutter
-    VERSION 1.0
+    VERSION 1.1
     LANGUAGES CXX
 )
 
@@ -16,12 +15,15 @@ add_executable(VideoCutter WIN32
     src/UI.cpp
     src/Theme.cpp
     src/App.cpp
+    src/resource.rc
 )
 
 target_link_libraries(VideoCutter PRIVATE
     comdlg32
     gdiplus
     comctl32
+    dwmapi
+    shell32
 )
 
 target_compile_definitions(VideoCutter PRIVATE
@@ -37,7 +39,11 @@ if(MSVC)
         /utf-8
         /permissive-
     )
+    target_link_options(VideoCutter PRIVATE
+        "/MANIFESTINPUT:${CMAKE_SOURCE_DIR}/app.manifest"
+    )
 endif()
+
 
 add_custom_command(TARGET VideoCutter POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory
@@ -50,14 +56,8 @@ add_custom_command(TARGET VideoCutter POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${CMAKE_SOURCE_DIR}/bin/ffprobe.exe"
         "$<TARGET_FILE_DIR:VideoCutter>/bin/ffprobe.exe"
-    
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    "${CMAKE_SOURCE_DIR}/VideoCutter.ico"
-    "$<TARGET_FILE_DIR:VideoCutter>/VideoCutter.ico"
 
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    "${CMAKE_SOURCE_DIR}/VideoCutter_icon_256.png"
-    "$<TARGET_FILE_DIR:VideoCutter>/VideoCutter_icon_256.png"
-
-
+        "${CMAKE_SOURCE_DIR}/VideoCutter_icon_256.png"
+        "$<TARGET_FILE_DIR:VideoCutter>/VideoCutter_icon_256.png"
 )

@@ -1,4 +1,4 @@
-﻿#include "App.h"
+#include "App.h"
 #include "UI.h"
 #include "Theme.h"
 #include "VideoInfo.h"
@@ -28,14 +28,16 @@ namespace {
 
 void DrawRoundedPanel(
     Graphics &graphics,
-    float x,
-    float y,
-    float width,
-    float height,
+    const RECT &rect,
     float radius,
     COLORREF fillColor,
     COLORREF borderColor)
 {
+    float x = static_cast<float>(rect.left);
+    float y = static_cast<float>(rect.top);
+    float width = static_cast<float>(rect.right - rect.left);
+    float height = static_cast<float>(rect.bottom - rect.top);
+
     GraphicsPath path;
     const float diameter = radius * 2.0f;
 
@@ -207,7 +209,7 @@ void LoadInputVideo(HWND hwnd, const std::wstring &filename)
         EnableWindow(hCut, FALSE);
     }
 
-    InvalidateRect(hwnd, nullptr, TRUE);
+    InvalidateRect(hwnd, nullptr, FALSE);
 }
 
 void HandleTimeChanged(HWND hwnd, int editId)
@@ -228,7 +230,7 @@ void HandleTimeChanged(HWND hwnd, int editId)
         return;
     }
 
-        if (videoInfo.duration > 0 && endTime > videoInfo.duration + 1.0)
+    if (videoInfo.duration > 0 && endTime > videoInfo.duration + 1.0)
     {
         SetWindowTextW(hStatus, L"Конец выходит за длительность видео");
         return;
@@ -238,7 +240,6 @@ void HandleTimeChanged(HWND hwnd, int editId)
     {
         endTime = videoInfo.duration;
     }
-
 
     SetWindowTextW(hStatus, L"Временной диапазон корректен");
 
@@ -320,7 +321,7 @@ bool CutVideo(HWND hwnd)
     double startTime = 0.0;
     double endTime = 0.0;
 
-        if (!ParseTime(GetControlText(hStart), startTime) ||
+    if (!ParseTime(GetControlText(hStart), startTime) ||
         !ParseTime(GetControlText(hEnd), endTime) ||
         startTime >= endTime ||
         (videoInfo.duration > 0 && endTime > videoInfo.duration + 1.0))
@@ -333,7 +334,6 @@ bool CutVideo(HWND hwnd)
     {
         endTime = videoInfo.duration;
     }
-
 
     std::filesystem::path ffmpegPath =
         std::filesystem::path(GetExecutablePath()) / L"bin" / L"ffmpeg.exe";
@@ -384,6 +384,19 @@ LRESULT CALLBACK WindowProc(
 {
     switch (message)
     {
+    case WM_GETMINMAXINFO:
+    {
+        auto *mmi = reinterpret_cast<MINMAXINFO *>(lParam);
+        RECT minRect{ 0, 0, Theme::WindowWidth, Theme::WindowHeight };
+        DWORD style = static_cast<DWORD>(GetWindowLongPtrW(hwnd, GWL_STYLE));
+        DWORD exStyle = static_cast<DWORD>(GetWindowLongPtrW(hwnd, GWL_EXSTYLE));
+        AdjustWindowRectEx(&minRect, style ? style : WS_OVERLAPPEDWINDOW, FALSE, exStyle);
+
+        mmi->ptMinTrackSize.x = minRect.right - minRect.left;
+        mmi->ptMinTrackSize.y = minRect.bottom - minRect.top;
+        return 0;
+    }
+
     case WM_PREVIEW_READY:
     {
         auto *res = reinterpret_cast<PreviewResult *>(lParam);
@@ -395,7 +408,7 @@ LRESULT CALLBACK WindowProc(
                 {
                     delete startBitmap;
                     startBitmap = res->bitmap;
-                    InvalidateRect(hPreviewStart, nullptr, TRUE);
+                    InvalidateRect(hPreviewStart, nullptr, FALSE);
                 }
                 else
                 {
@@ -408,7 +421,7 @@ LRESULT CALLBACK WindowProc(
                 {
                     delete endBitmap;
                     endBitmap = res->bitmap;
-                    InvalidateRect(hPreviewEnd, nullptr, TRUE);
+                    InvalidateRect(hPreviewEnd, nullptr, FALSE);
                 }
                 else
                 {
@@ -434,7 +447,7 @@ LRESULT CALLBACK WindowProc(
         return 0;
     }
 
-        case WM_DROPFILES:
+    case WM_DROPFILES:
     {
         HDROP hDrop = reinterpret_cast<HDROP>(wParam);
         UINT len = DragQueryFileW(hDrop, 0, nullptr, 0);
@@ -454,7 +467,6 @@ LRESULT CALLBACK WindowProc(
         DragFinish(hDrop);
         return 0;
     }
-
 
     case WM_CUT_PROGRESS:
     {
@@ -501,7 +513,6 @@ LRESULT CALLBACK WindowProc(
 
     case WM_CREATE:
     {
-        // Темная строка заголовка Windows 10/11
         BOOL useDarkMode = TRUE;
         DwmSetWindowAttribute(
             hwnd,
@@ -602,6 +613,7 @@ LRESULT CALLBACK WindowProc(
 
     case WM_SIZE:
         Layout(hwnd);
+        InvalidateRect(hwnd, nullptr, FALSE);
         return 0;
 
     case WM_CTLCOLORSTATIC:
@@ -619,7 +631,7 @@ LRESULT CALLBACK WindowProc(
 
         if (hCtrl == hFileInfo)
         {
-            SetTextColor(dc, RGB(118, 148, 106)); // Autumn Green #76946A
+            SetTextColor(dc, RGB(118, 148, 106));
             SetBkMode(dc, TRANSPARENT);
             return reinterpret_cast<LRESULT>(hPanelBrush);
         }
@@ -706,7 +718,7 @@ LRESULT CALLBACK WindowProc(
                 dis->hDC,
                 dis->rcItem.left + 1,
                 dis->rcItem.top + 1,
-                                dis->rcItem.right - 1,
+                dis->rcItem.right - 1,
                 dis->rcItem.bottom - 1);
 
             SelectObject(dis->hDC, oldPen);
@@ -751,7 +763,25 @@ LRESULT CALLBACK WindowProc(
         PAINTSTRUCT ps;
         HDC dc = BeginPaint(hwnd, &ps);
 
-        Graphics graphics(dc);
+        RECT clientRect{};
+        GetClientRect(hwnd, &clientRect);
+        int cw = clientRect.right - clientRect.left;
+        int ch = clientRect.bottom - clientRect.top;
+
+        if (cw <= 0 || ch <= 0)
+        {
+            EndPaint(hwnd, &ps);
+            return 0;
+        }
+
+        // Double buffering via memory DC to prevent flicker during resize
+        HDC memDC = CreateCompatibleDC(dc);
+        HBITMAP memBmp = CreateCompatibleBitmap(dc, cw, ch);
+        HGDIOBJ oldBmp = SelectObject(memDC, memBmp);
+
+        LayoutMetrics m = CalculateLayout(cw, ch);
+
+        Graphics graphics(memDC);
         graphics.SetSmoothingMode(SmoothingModeAntiAlias);
 
         graphics.Clear(Color(
@@ -760,49 +790,64 @@ LRESULT CALLBACK WindowProc(
             GetGValue(Theme::Background),
             GetBValue(Theme::Background)));
 
-        // Left panel: source and output
-        DrawRoundedPanel(graphics, 20, 185, 590, 375, 18, Theme::Panel, Theme::Border);
+        // Panels
+        DrawRoundedPanel(graphics, m.leftPanel, 18.0f, Theme::Panel, Theme::Border);
+        DrawRoundedPanel(graphics, m.rightTopPanel, 18.0f, Theme::Panel, Theme::Border);
+        DrawRoundedPanel(graphics, m.rightBottomPanel, 18.0f, Theme::Panel, Theme::Border);
+        DrawRoundedPanel(graphics, m.bottomPanel, 18.0f, Theme::Panel, Theme::Border);
 
-        // Right panel: start preview
-        DrawRoundedPanel(graphics, 625, 185, 455, 180, 18, Theme::Panel, Theme::Border);
-
-        // Right panel: end preview
-        DrawRoundedPanel(graphics, 625, 380, 455, 180, 18, Theme::Panel, Theme::Border);
-
-        // Bottom panel
-        DrawRoundedPanel(graphics, 20, 595, 1060, 95, 18, Theme::Panel, Theme::Border);
-
-        // Header
+        // Header accent bar
         SolidBrush accentBrush(Color(
             255,
             GetRValue(Theme::Accent),
             GetGValue(Theme::Accent),
             GetBValue(Theme::Accent)));
 
-        graphics.FillRectangle(&accentBrush, 34, 52, 5, 75);
+        graphics.FillRectangle(
+    &accentBrush,
+    static_cast<INT>(m.accentBar.left),
+    static_cast<INT>(m.accentBar.top),
+    static_cast<INT>(m.accentBar.right - m.accentBar.left),
+    static_cast<INT>(m.accentBar.bottom - m.accentBar.top));
 
-        SelectObject(dc, hTitleFont);
-        SetBkMode(dc, TRANSPARENT);
-        SetTextColor(dc, Theme::Text);
-        TextOutW(dc, 60, 38, L"Video Cutter", 12);
 
-        SelectObject(dc, hFont);
-        SetTextColor(dc, Theme::TextMuted);
-        TextOutW(dc, 60, 112, L"Быстрая обрезка без перекодирования", 35);
+        HGDIOBJ oldFont = SelectObject(memDC, hTitleFont);
+        SetBkMode(memDC, TRANSPARENT);
+        SetTextColor(memDC, Theme::Text);
+        TextOutW(memDC, m.titlePos.x, m.titlePos.y, L"Video Cutter", 12);
+
+        SelectObject(memDC, hFont);
+        SetTextColor(memDC, Theme::TextMuted);
+        TextOutW(memDC, m.subtitlePos.x, m.subtitlePos.y, L"Быстрая обрезка без перекодирования", 35);
 
         // Section headings
-        SetTextColor(dc, Theme::Text);
-        TextOutW(dc, 90, 205, L"Исходный видеофайл", 18);
-        TextOutW(dc, 90, 415, L"Выходной файл", 14);
+        SetTextColor(memDC, Theme::Text);
+        TextOutW(memDC, m.srcLabelPos.x, m.srcLabelPos.y, L"Исходный видеофайл", 18);
+        TextOutW(memDC, m.dstLabelPos.x, m.dstLabelPos.y, L"Выходной файл", 14);
 
-        TextOutW(dc, 895, 215, L"Начало", 6);
-        TextOutW(dc, 895, 420, L"Конец", 5);
+        TextOutW(memDC, m.startLabelPos.x, m.startLabelPos.y, L"Начало", 6);
+        TextOutW(memDC, m.endLabelPos.x, m.endLabelPos.y, L"Конец", 5);
 
         // Logo
-        if (appLogo && appLogo->GetLastStatus() == Gdiplus::Ok)
+                if (appLogo && appLogo->GetLastStatus() == Gdiplus::Ok)
         {
-            graphics.DrawImage(appLogo, 900, 15, 145, 125);
+            graphics.DrawImage(
+                appLogo,
+                static_cast<INT>(m.logoRect.left),
+                static_cast<INT>(m.logoRect.top),
+                static_cast<INT>(m.logoRect.right - m.logoRect.left),
+                static_cast<INT>(m.logoRect.bottom - m.logoRect.top));
         }
+
+
+        SelectObject(memDC, oldFont);
+
+        // Blit buffer to screen
+        BitBlt(dc, 0, 0, cw, ch, memDC, 0, 0, SRCCOPY);
+
+        SelectObject(memDC, oldBmp);
+        DeleteObject(memBmp);
+        DeleteDC(memDC);
 
         EndPaint(hwnd, &ps);
         return 0;
@@ -839,4 +884,3 @@ LRESULT CALLBACK WindowProc(
 
     return DefWindowProcW(hwnd, message, wParam, lParam);
 }
-

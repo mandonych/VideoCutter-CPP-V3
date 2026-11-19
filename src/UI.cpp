@@ -1,4 +1,4 @@
-﻿#include "UI.h"
+#include "UI.h"
 #include <algorithm>
 #include <commctrl.h>
 
@@ -15,6 +15,114 @@ HFONT hTitleFont = nullptr;
 HBRUSH hBgBrush = nullptr;
 HBRUSH hPanelBrush = nullptr;
 HBRUSH hEditBrush = nullptr;
+
+LayoutMetrics CalculateLayout(int clientW, int clientH)
+{
+    LayoutMetrics m{};
+    m.clientW = (std::max)(clientW, Theme::WindowWidth);
+    m.clientH = (std::max)(clientH, Theme::WindowHeight);
+
+    constexpr int margin = 20;
+    constexpr int gap = 15;
+    constexpr int headerH = 185;
+    constexpr int footerH = 45;
+    constexpr int bottomPanelH = 95;
+
+    // Header
+    m.accentBar = { 34, 52, 39, 127 };
+    m.titlePos = { 60, 38 };
+    m.subtitlePos = { 60, 112 };
+    m.logoRect = { m.clientW - 185, 15, m.clientW - 40, 140 };
+
+    // Vertical bounds for middle panels
+    int middleTop = headerH;
+    int bottomPanelTop = m.clientH - footerH - bottomPanelH;
+    int middleBottom = bottomPanelTop - 35;
+    int middleH = middleBottom - middleTop;
+
+    // Horizontal split: ~55% left panel, ~45% right panels
+    int usableW = m.clientW - margin * 2 - gap;
+    int leftW = static_cast<int>(usableW * 0.555);
+    int rightW = usableW - leftW;
+
+    int leftX = margin;
+    int rightX = leftX + leftW + gap;
+
+    m.leftPanel = { leftX, middleTop, leftX + leftW, middleBottom };
+
+    int rightTopH = (middleH - gap) / 2;
+    int rightBottomH = middleH - gap - rightTopH;
+
+    m.rightTopPanel = { rightX, middleTop, rightX + rightW, middleTop + rightTopH };
+    m.rightBottomPanel = { rightX, middleTop + rightTopH + gap, rightX + rightW, middleBottom };
+
+    // Left panel contents (vertically centered inside leftPanel)
+    int innerPad = 20;
+    int btnW = 140;
+    int editW = leftW - innerPad * 2 - btnW - 10;
+
+    int srcBlockY = middleTop + (middleH - 255) / 2;
+    m.srcLabelPos = { leftX + innerPad + 4, srcBlockY };
+    m.inputRect = { leftX + innerPad, srcBlockY + 35, leftX + innerPad + editW, srcBlockY + 79 };
+    m.browseRect = { leftX + innerPad + editW + 10, srcBlockY + 35, leftX + leftW - innerPad, srcBlockY + 79 };
+    m.fileInfoRect = { leftX + innerPad, srcBlockY + 92, leftX + leftW - innerPad, srcBlockY + 124 };
+
+    int dstBlockY = srcBlockY + 165;
+    m.dstLabelPos = { leftX + innerPad + 4, dstBlockY };
+    m.outputRect = { leftX + innerPad, dstBlockY + 35, leftX + innerPad + editW, dstBlockY + 79 };
+    m.saveRect = { leftX + innerPad + editW + 10, dstBlockY + 35, leftX + leftW - innerPad, dstBlockY + 79 };
+
+    // Right panels contents (Start & End previews)
+    int timeColW = 175;
+    int previewPad = 20;
+    int previewW = rightW - previewPad * 2 - timeColW - 20;
+
+    // Top preview (Start)
+    int topPreviewH = rightTopH - previewPad * 2;
+    m.previewStartRect = {
+        rightX + previewPad,
+        middleTop + previewPad,
+        rightX + previewPad + previewW,
+        middleTop + previewPad + topPreviewH
+    };
+    int timeX = rightX + previewPad + previewW + 20;
+    int topCenterY = middleTop + rightTopH / 2;
+    m.startLabelPos = { timeX, topCenterY - 52 };
+    m.startEditRect = { timeX, topCenterY - 12, timeX + timeColW, topCenterY + 36 };
+
+    // Bottom preview (End)
+    int botTop = m.rightBottomPanel.top;
+    int botPreviewH = rightBottomH - previewPad * 2;
+    m.previewEndRect = {
+        rightX + previewPad,
+        botTop + previewPad,
+        rightX + previewPad + previewW,
+        botTop + previewPad + botPreviewH
+    };
+    int botCenterY = botTop + rightBottomH / 2;
+    m.endLabelPos = { timeX, botCenterY - 52 };
+    m.endEditRect = { timeX, botCenterY - 12, timeX + timeColW, botCenterY + 36 };
+
+    // Bottom panel (Progress + Cut button)
+    m.bottomPanel = { margin, bottomPanelTop, m.clientW - margin, bottomPanelTop + bottomPanelH };
+
+    int cutBtnW = 240;
+    int cutBtnH = 65;
+    int cutBtnX = m.clientW - margin - 20 - cutBtnW;
+    int cutBtnY = bottomPanelTop + (bottomPanelH - cutBtnH) / 2;
+    m.cutBtnRect = { cutBtnX, cutBtnY, cutBtnX + cutBtnW, cutBtnY + cutBtnH };
+
+    int progX = margin + 20;
+    int progW = cutBtnX - progX - 40;
+    int progY = bottomPanelTop + (bottomPanelH - 14) / 2;
+    m.progressRect = { progX, progY, progX + progW, progY + 14 };
+
+    // Footer status
+    int statusY = bottomPanelTop + bottomPanelH + 12;
+    m.statusRect = { m.clientW - margin - 600, statusY, m.clientW - margin - 5, statusY + 24 };
+
+    return m;
+}
 
 void SetFont(HWND hwnd, HFONT font)
 {
@@ -63,7 +171,6 @@ LRESULT CALLBACK EditSubclassProc(
         InvalidateRect(hwnd, nullptr, TRUE);
     }
 
-    // Перехват Enter: блокируем перенос строки (из-за ES_MULTILINE) и уведомляем главное окно
     if (message == WM_KEYDOWN && wParam == VK_RETURN)
     {
         PostMessageW(GetParent(hwnd), WM_TIME_ENTER, subclassId, (LPARAM)hwnd);
@@ -235,88 +342,39 @@ HWND CreateButton(HWND parent, int id, const wchar_t *text)
     return h;
 }
 
-void Layout(HWND)
+void Layout(HWND hwnd)
 {
-    // =====================================
-    // LEFT PANEL — Source and Output
-    // =====================================
+    RECT rc{};
+    GetClientRect(hwnd, &rc);
 
-    // Source file
-    SetWindowPos(
-        hInput, nullptr,
-        40, 255, 400, 44,
-        SWP_NOZORDER);
+    LayoutMetrics m = CalculateLayout(rc.right - rc.left, rc.bottom - rc.top);
 
-    SetWindowPos(
-        hBrowse, nullptr,
-        450, 255, 140, 44,
-        SWP_NOZORDER);
+    auto place = [](HWND ctrl, const RECT &r) {
+        if (!ctrl) return;
+        SetWindowPos(
+            ctrl,
+            nullptr,
+            r.left,
+            r.top,
+            r.right - r.left,
+            r.bottom - r.top,
+            SWP_NOZORDER | SWP_NOACTIVATE);
+    };
 
-    // Video information
-    SetWindowPos(
-        hFileInfo, nullptr,
-        40, 315, 540, 32,
-        SWP_NOZORDER);
+    place(hInput, m.inputRect);
+    place(hBrowse, m.browseRect);
+    place(hFileInfo, m.fileInfoRect);
+    place(hOutput, m.outputRect);
+    place(hSave, m.saveRect);
 
-    // Output file
-    SetWindowPos(
-        hOutput, nullptr,
-        40, 445, 400, 44,
-        SWP_NOZORDER);
+    place(hPreviewStart, m.previewStartRect);
+    place(hStart, m.startEditRect);
+    place(hPreviewEnd, m.previewEndRect);
+    place(hEnd, m.endEditRect);
 
-    SetWindowPos(
-        hSave, nullptr,
-        450, 445, 140, 44,
-        SWP_NOZORDER);
-
-    // =====================================
-    // RIGHT PANEL — Preview
-    // =====================================
-
-    // Start frame
-    SetWindowPos(
-        hPreviewStart, nullptr,
-        645, 205, 220, 145,
-        SWP_NOZORDER);
-
-    SetWindowPos(
-        hStart, nullptr,
-        895, 270, 170, 48,
-        SWP_NOZORDER);
-
-    // End frame
-    SetWindowPos(
-        hPreviewEnd, nullptr,
-        645, 400, 220, 145,
-        SWP_NOZORDER);
-
-    SetWindowPos(
-        hEnd, nullptr,
-        895, 475, 170, 48,
-        SWP_NOZORDER);
-
-    // =====================================
-    // BOTTOM PANEL — Progress and Cut
-    // =====================================
-
-    SetWindowPos(
-        hCut, nullptr,
-        820, 610, 240, 65,
-        SWP_NOZORDER);
-
-    SetWindowPos(
-        hProgress, nullptr,
-        40, 635, 700, 14,
-        SWP_NOZORDER);
-
-    // =====================================
-    // FOOTER — Status message
-    // =====================================
-
-    SetWindowPos(
-        hStatus, nullptr,
-        500, 720, 585, 24,
-        SWP_NOZORDER);
+    place(hCut, m.cutBtnRect);
+    place(hProgress, m.progressRect);
+    place(hStatus, m.statusRect);
 
     CenterEditTextVertical(hInput);
     CenterEditTextVertical(hOutput);
@@ -336,13 +394,11 @@ void DrawButton(const DRAWITEMSTRUCT *dis)
                              ? Theme::Background
                              : Theme::Text;
 
-    // Отключённая кнопка
     if (dis->itemState & ODS_DISABLED)
     {
         background = Theme::PanelSecondary;
         textColor = Theme::TextMuted;
     }
-    // Нажатая кнопка
     else if (dis->itemState & ODS_SELECTED)
     {
         background = primary
@@ -351,7 +407,6 @@ void DrawButton(const DRAWITEMSTRUCT *dis)
     }
     else
     {
-        // Проверка наведения курсора (Hover)
         POINT cursor{};
         GetCursorPos(&cursor);
         ScreenToClient(dis->hwndItem, &cursor);
@@ -365,17 +420,13 @@ void DrawButton(const DRAWITEMSTRUCT *dis)
     }
 
     HBRUSH brush = CreateSolidBrush(background);
-
     FillRect(dis->hDC, &dis->rcItem, brush);
-
     DeleteObject(brush);
 
     SetBkMode(dis->hDC, TRANSPARENT);
     SetTextColor(dis->hDC, textColor);
 
     wchar_t text[128]{};
-
-
     GetWindowTextW(dis->hwndItem, text, 128);
 
     RECT rect = dis->rcItem;

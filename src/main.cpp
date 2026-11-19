@@ -38,12 +38,8 @@ int WINAPI wWinMain(
     if (!RegisterClassW(&wc))
         return 1;
 
-    // Fixed window size: 1100 x 760 client area
-    const DWORD windowStyle =
-        WS_OVERLAPPED |
-        WS_CAPTION |
-        WS_SYSMENU |
-        WS_MINIMIZEBOX;
+    // Resizable window with maximize button, starting at 1100 x 760 client area
+    const DWORD windowStyle = WS_OVERLAPPEDWINDOW;
 
     RECT windowRect{
         0, 0,

@@ -4,7 +4,6 @@
 
 #include "Theme.h"
 
-// Сообщение о нажатии Enter в поле ввода времени
 constexpr UINT WM_TIME_ENTER = WM_APP + 10;
 
 // Compatibility aliases for existing UI code
@@ -28,6 +27,48 @@ enum
     ID_PREVIEW_START,
     ID_PREVIEW_END
 };
+
+struct LayoutMetrics
+{
+    int clientW = Theme::WindowWidth;
+    int clientH = Theme::WindowHeight;
+
+    // Main panels
+    RECT leftPanel{};
+    RECT rightTopPanel{};
+    RECT rightBottomPanel{};
+    RECT bottomPanel{};
+
+    // Header
+    RECT accentBar{};
+    POINT titlePos{};
+    POINT subtitlePos{};
+    RECT logoRect{};
+
+    // Section headers
+    POINT srcLabelPos{};
+    POINT dstLabelPos{};
+    POINT startLabelPos{};
+    POINT endLabelPos{};
+
+    // Controls
+    RECT inputRect{};
+    RECT browseRect{};
+    RECT fileInfoRect{};
+    RECT outputRect{};
+    RECT saveRect{};
+
+    RECT previewStartRect{};
+    RECT startEditRect{};
+    RECT previewEndRect{};
+    RECT endEditRect{};
+
+    RECT progressRect{};
+    RECT cutBtnRect{};
+    RECT statusRect{};
+};
+
+LayoutMetrics CalculateLayout(int clientW, int clientH);
 
 extern HFONT hFont;
 extern HFONT hTimeFont;

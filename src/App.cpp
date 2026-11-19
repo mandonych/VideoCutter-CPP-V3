@@ -1,31 +1,32 @@
-﻿#include "Utils.h"
-
-
-#include "App.h"
+﻿#include "App.h"
 #include "UI.h"
 #include "Theme.h"
 #include "VideoInfo.h"
 #include "VideoProcessor.h"
+#include "Utils.h"
 
 #include <windows.h>
 #include <commctrl.h>
 #include <objidl.h>
 #include <gdiplus.h>
+#include <dwmapi.h>
+#include <shellapi.h>
+#include <commdlg.h>
 
 #include <string>
 #include <thread>
 #include <atomic>
-
-#include <commdlg.h>
 #include <filesystem>
 #include <algorithm>
 #include <cwchar>
-#include <gdiplus.h>
+#include <cstdio>
 
 extern VideoInfo videoInfo;
 using namespace Gdiplus;
 
-static void DrawRoundedPanel(
+namespace {
+
+void DrawRoundedPanel(
     Graphics &graphics,
     float x,
     float y,
@@ -36,34 +37,12 @@ static void DrawRoundedPanel(
     COLORREF borderColor)
 {
     GraphicsPath path;
-
     const float diameter = radius * 2.0f;
 
     path.AddArc(x, y, diameter, diameter, 180, 90);
-    path.AddArc(
-        x + width - diameter,
-        y,
-        diameter,
-        diameter,
-        270,
-        90);
-
-    path.AddArc(
-        x + width - diameter,
-        y + height - diameter,
-        diameter,
-        diameter,
-        0,
-        90);
-
-    path.AddArc(
-        x,
-        y + height - diameter,
-        diameter,
-        diameter,
-        90,
-        90);
-
+    path.AddArc(x + width - diameter, y, diameter, diameter, 270, 90);
+    path.AddArc(x + width - diameter, y + height - diameter, diameter, diameter, 0, 90);
+    path.AddArc(x, y + height - diameter, diameter, diameter, 90, 90);
     path.CloseFigure();
 
     SolidBrush brush(Color(
@@ -83,7 +62,18 @@ static void DrawRoundedPanel(
     graphics.DrawPath(&pen, &path);
 }
 
-// Глобальные переменные приложения
+std::wstring FormatSecondsDot(double seconds)
+{
+    wchar_t buf[64]{};
+    swprintf_s(buf, L"%.3f", seconds);
+    for (wchar_t &ch : buf)
+    {
+        if (ch == L',')
+            ch = L'.';
+    }
+    return buf;
+}
+
 HICON hAppIconSmall = nullptr;
 HICON hAppIconLarge = nullptr;
 
@@ -94,28 +84,297 @@ Gdiplus::Image *appLogo = nullptr;
 std::thread cutThread;
 std::atomic<bool> isCutting{false};
 
-// Функции из main.cpp
+std::atomic<uint64_t> startPreviewGen{0};
+std::atomic<uint64_t> endPreviewGen{0};
 
-
-std::wstring GetControlText(HWND hwnd);
-
-void ChooseInput(HWND hwnd);
-void ChooseOutput(HWND hwnd);
-bool CutVideo();
-
-bool ParseTime(const std::wstring &value, double &result)
+std::wstring GetControlText(HWND control)
 {
-    int h = 0, m = 0, s = 0;
+    int length = GetWindowTextLengthW(control);
+    std::wstring text(length + 1, L'\0');
+    GetWindowTextW(control, text.data(), length + 1);
+    text.resize(length);
+    return text;
+}
 
-    if (swscanf_s(value.c_str(), L"%d:%d:%d", &h, &m, &s) != 3)
+std::wstring MakeOutputName(const std::wstring &input)
+{
+    size_t slash = input.find_last_of(L"\\/");
+    size_t dot = input.find_last_of(L'.');
+
+    if (dot == std::wstring::npos ||
+        (slash != std::wstring::npos && dot < slash))
+    {
+        return input + L"_cut";
+    }
+
+    return input.substr(0, dot) + L"_cut" + input.substr(dot);
+}
+
+bool ParseTime(const std::wstring &raw, double &result)
+{
+    std::wstring value = raw;
+    for (wchar_t &ch : value)
+    {
+        if (ch == L',')
+            ch = L'.';
+    }
+
+    int h = 0, m = 0;
+    double s = 0.0;
+
+    if (swscanf_s(value.c_str(), L"%d:%d:%lf", &h, &m, &s) == 3)
+    {
+        if (h < 0 || m < 0 || m > 59 || s < 0.0 || s >= 60.0)
+            return false;
+        result = h * 3600.0 + m * 60.0 + s;
+        return true;
+    }
+
+    if (swscanf_s(value.c_str(), L"%d:%lf", &m, &s) == 2)
+    {
+        if (m < 0 || s < 0.0 || s >= 60.0)
+            return false;
+        result = m * 60.0 + s;
+        return true;
+    }
+
+    return false;
+}
+
+void RequestPreviewUpdate(HWND hwnd, int controlId, const std::wstring &filePath, double timeSeconds)
+{
+    if (filePath.empty())
+        return;
+
+    uint64_t reqId = (controlId == ID_PREVIEW_START)
+                         ? ++startPreviewGen
+                         : ++endPreviewGen;
+
+    ExtractFrameAsync(hwnd, controlId, reqId, filePath, timeSeconds);
+}
+
+void LoadInputVideo(HWND hwnd, const std::wstring &filename)
+{
+    SetWindowTextW(hInput, filename.c_str());
+    SendMessageW(hInput, EM_SETSEL, static_cast<WPARAM>(-1), static_cast<LPARAM>(-1));
+    SendMessageW(hInput, EM_SCROLLCARET, 0, 0);
+
+    std::wstring output = MakeOutputName(filename);
+    SetWindowTextW(hOutput, output.c_str());
+    SendMessageW(hOutput, EM_SETSEL, static_cast<WPARAM>(-1), static_cast<LPARAM>(-1));
+    SendMessageW(hOutput, EM_SCROLLCARET, 0, 0);
+
+    if (ProbeVideo(filename, videoInfo))
+    {
+        SetWindowTextW(hStatus, L"Информация о видео загружена");
+        EnableWindow(hCut, TRUE);
+
+        int totalSeconds = static_cast<int>(videoInfo.duration);
+        int hours = totalSeconds / 3600;
+        int minutes = (totalSeconds % 3600) / 60;
+        int seconds = totalSeconds % 60;
+
+        wchar_t endTime[32]{};
+        swprintf_s(endTime, L"%02d:%02d:%02d", hours, minutes, seconds);
+
+        SetWindowTextW(hStart, L"00:00:00");
+        SetWindowTextW(hEnd, endTime);
+
+        wchar_t info[512]{};
+        swprintf_s(
+            info,
+            L"%s | %dx%d | %.2f FPS | %02d:%02d:%02d",
+            videoInfo.format.c_str(),
+            videoInfo.width,
+            videoInfo.height,
+            videoInfo.fps,
+            hours,
+            minutes,
+            seconds);
+
+        SetWindowTextW(hFileInfo, info);
+
+        double startPreviewTime = (std::min)(0.5, videoInfo.duration * 0.1);
+        double endPreviewTime = (std::max)(0.0, videoInfo.duration - 0.5);
+
+        RequestPreviewUpdate(hwnd, ID_PREVIEW_START, filename, startPreviewTime);
+        RequestPreviewUpdate(hwnd, ID_PREVIEW_END, filename, endPreviewTime);
+    }
+    else
+    {
+        SetWindowTextW(hStatus, L"Не удалось прочитать информацию о видео");
+        SetWindowTextW(hFileInfo, L"Ошибка чтения видео");
+        EnableWindow(hCut, FALSE);
+    }
+
+    InvalidateRect(hwnd, nullptr, TRUE);
+}
+
+void HandleTimeChanged(HWND hwnd, int editId)
+{
+    double startTime = 0.0;
+    double endTime = 0.0;
+
+    if (!ParseTime(GetControlText(hStart), startTime) ||
+        !ParseTime(GetControlText(hEnd), endTime))
+    {
+        SetWindowTextW(hStatus, L"Неверный формат времени (ЧЧ:ММ:СС)");
+        return;
+    }
+
+    if (startTime >= endTime)
+    {
+        SetWindowTextW(hStatus, L"Начало должно быть раньше конца");
+        return;
+    }
+
+        if (videoInfo.duration > 0 && endTime > videoInfo.duration + 1.0)
+    {
+        SetWindowTextW(hStatus, L"Конец выходит за длительность видео");
+        return;
+    }
+
+    if (videoInfo.duration > 0 && endTime > videoInfo.duration)
+    {
+        endTime = videoInfo.duration;
+    }
+
+
+    SetWindowTextW(hStatus, L"Временной диапазон корректен");
+
+    std::wstring inputPath = GetControlText(hInput);
+    if (inputPath.empty())
+        return;
+
+    if (editId == ID_START)
+    {
+        RequestPreviewUpdate(hwnd, ID_PREVIEW_START, inputPath, startTime);
+    }
+    else if (editId == ID_END)
+    {
+        double previewPos = (std::max)(0.0, endTime - 0.5);
+        RequestPreviewUpdate(hwnd, ID_PREVIEW_END, inputPath, previewPos);
+    }
+}
+
+void ChooseInput(HWND hwnd)
+{
+    wchar_t filename[32768]{};
+
+    OPENFILENAMEW ofn{};
+    ofn.lStructSize = sizeof(ofn);
+    ofn.hwndOwner = hwnd;
+    ofn.lpstrFilter =
+        L"Video files\0*.mp4;*.mkv;*.mov;*.avi;*.webm;*.m4v;*.ts\0"
+        L"All files\0*.*\0";
+    ofn.lpstrFile = filename;
+    ofn.nMaxFile = 32768;
+    ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
+    ofn.lpstrTitle = L"Выберите исходный видеофайл";
+
+    if (GetOpenFileNameW(&ofn))
+    {
+        LoadInputVideo(hwnd, filename);
+    }
+}
+
+void ChooseOutput(HWND hwnd)
+{
+    wchar_t filename[32768]{};
+    GetWindowTextW(hOutput, filename, 32768);
+
+    OPENFILENAMEW ofn{};
+    ofn.lStructSize = sizeof(ofn);
+    ofn.hwndOwner = hwnd;
+    ofn.lpstrFilter =
+        L"MP4 video\0*.mp4\0"
+        L"MKV video\0*.mkv\0"
+        L"All files\0*.*\0";
+    ofn.lpstrFile = filename;
+    ofn.nMaxFile = 32768;
+    ofn.Flags = OFN_PATHMUSTEXIST | OFN_OVERWRITEPROMPT;
+    ofn.lpstrTitle = L"Сохранить видеофрагмент";
+
+    if (GetSaveFileNameW(&ofn))
+    {
+        SetWindowTextW(hOutput, filename);
+        SendMessageW(hOutput, EM_SETSEL, static_cast<WPARAM>(-1), static_cast<LPARAM>(-1));
+        SendMessageW(hOutput, EM_SCROLLCARET, 0, 0);
+    }
+}
+
+bool CutVideo(HWND hwnd)
+{
+    if (isCutting)
         return false;
 
-    if (h < 0 || m < 0 || m > 59 || s < 0 || s > 59)
-        return false;
+    std::wstring input = GetControlText(hInput);
+    std::wstring output = GetControlText(hOutput);
 
-    result = h * 3600.0 + m * 60.0 + s;
+    if (input.empty() || output.empty())
+    {
+        SetWindowTextW(hStatus, L"Не выбран входной или выходной файл");
+        return false;
+    }
+
+    double startTime = 0.0;
+    double endTime = 0.0;
+
+        if (!ParseTime(GetControlText(hStart), startTime) ||
+        !ParseTime(GetControlText(hEnd), endTime) ||
+        startTime >= endTime ||
+        (videoInfo.duration > 0 && endTime > videoInfo.duration + 1.0))
+    {
+        SetWindowTextW(hStatus, L"Проверьте временной диапазон");
+        return false;
+    }
+
+    if (videoInfo.duration > 0 && endTime > videoInfo.duration)
+    {
+        endTime = videoInfo.duration;
+    }
+
+
+    std::filesystem::path ffmpegPath =
+        std::filesystem::path(GetExecutablePath()) / L"bin" / L"ffmpeg.exe";
+
+    if (!std::filesystem::exists(ffmpegPath))
+    {
+        SetWindowTextW(hStatus, L"Не найден bin\\ffmpeg.exe");
+        MessageBoxW(
+            hwnd,
+            L"Исполняемый файл bin\\ffmpeg.exe не найден рядом с программой.",
+            L"Video Cutter",
+            MB_OK | MB_ICONERROR);
+        return false;
+    }
+
+    double duration = endTime - startTime;
+    std::wstring ffmpeg = ffmpegPath.wstring();
+
+    std::wstring command =
+        L"\"" + ffmpeg + L"\""
+        L" -y -ss " + FormatSecondsDot(startTime) +
+        L" -i \"" + input + L"\""
+        L" -t " + FormatSecondsDot(duration) +
+        L" -c copy -progress pipe:1 -nostats \"" + output + L"\"";
+
+    isCutting = true;
+    EnableWindow(hCut, FALSE);
+
+    SendMessageW(hProgress, PBM_SETPOS, 0, 0);
+    SetWindowTextW(hStatus, L"Выполняется нарезка видео...");
+
+    cutThread = std::thread(
+        [command, ffmpeg, hwnd, duration]()
+        {
+            RunCutProcess(command, ffmpeg, hwnd, duration);
+        });
+
     return true;
 }
+
+} // namespace
 
 LRESULT CALLBACK WindowProc(
     HWND hwnd,
@@ -125,19 +384,87 @@ LRESULT CALLBACK WindowProc(
 {
     switch (message)
     {
-    case WM_CUT_PROGRESS:
+    case WM_PREVIEW_READY:
     {
-        SendMessageW(
-            hProgress,
-            PBM_SETPOS,
-            (WPARAM)wParam,
-            0);
-
+        auto *res = reinterpret_cast<PreviewResult *>(lParam);
+        if (res)
+        {
+            if (res->controlId == ID_PREVIEW_START)
+            {
+                if (res->requestId == startPreviewGen.load() && res->bitmap)
+                {
+                    delete startBitmap;
+                    startBitmap = res->bitmap;
+                    InvalidateRect(hPreviewStart, nullptr, TRUE);
+                }
+                else
+                {
+                    delete res->bitmap;
+                }
+            }
+            else if (res->controlId == ID_PREVIEW_END)
+            {
+                if (res->requestId == endPreviewGen.load() && res->bitmap)
+                {
+                    delete endBitmap;
+                    endBitmap = res->bitmap;
+                    InvalidateRect(hPreviewEnd, nullptr, TRUE);
+                }
+                else
+                {
+                    delete res->bitmap;
+                }
+            }
+            else
+            {
+                delete res->bitmap;
+            }
+            delete res;
+        }
         return 0;
     }
+
+    case WM_TIME_ENTER:
+    {
+        int editId = static_cast<int>(wParam);
+        if (editId == ID_START || editId == ID_END)
+        {
+            HandleTimeChanged(hwnd, editId);
+        }
+        return 0;
+    }
+
+        case WM_DROPFILES:
+    {
+        HDROP hDrop = reinterpret_cast<HDROP>(wParam);
+        UINT len = DragQueryFileW(hDrop, 0, nullptr, 0);
+
+        if (len > 0)
+        {
+            std::wstring filePath(len + 1, L'\0');
+            DragQueryFileW(hDrop, 0, filePath.data(), len + 1);
+            filePath.resize(len);
+
+            if (!std::filesystem::is_directory(filePath))
+            {
+                LoadInputVideo(hwnd, filePath);
+            }
+        }
+
+        DragFinish(hDrop);
+        return 0;
+    }
+
+
+    case WM_CUT_PROGRESS:
+    {
+        SendMessageW(hProgress, PBM_SETPOS, wParam, 0);
+        return 0;
+    }
+
     case WM_CUT_FINISHED:
     {
-        DWORD exitCode = (DWORD)wParam;
+        DWORD exitCode = static_cast<DWORD>(wParam);
 
         if (cutThread.joinable())
             cutThread.join();
@@ -169,84 +496,53 @@ LRESULT CALLBACK WindowProc(
 
         SetWindowTextW(hStatus, L"");
         SendMessageW(hProgress, PBM_SETPOS, 0, 0);
-
         return 0;
     }
 
     case WM_CREATE:
     {
+        // Темная строка заголовка Windows 10/11
+        BOOL useDarkMode = TRUE;
+        DwmSetWindowAttribute(
+            hwnd,
+            DWMWA_USE_IMMERSIVE_DARK_MODE,
+            &useDarkMode,
+            sizeof(useDarkMode));
+
         std::wstring logoPath =
             GetExecutablePath() + L"\\VideoCutter_icon_256.png";
-
         appLogo = Gdiplus::Image::FromFile(logoPath.c_str());
-        // Иконка приложения
-        std::wstring iconPath = GetExecutablePath() + L"\\VideoCutter.ico";
 
-        hAppIconSmall = (HICON)LoadImageW(
-            nullptr,
-            iconPath.c_str(),
-            IMAGE_ICON,
-            24, 24,
-            LR_LOADFROMFILE);
-
-        hAppIconLarge = (HICON)LoadImageW(
-            nullptr,
-            iconPath.c_str(),
-            IMAGE_ICON,
-            48, 48,
-            LR_LOADFROMFILE);
+        HINSTANCE hInst = GetModuleHandleW(nullptr);
+        hAppIconSmall = static_cast<HICON>(LoadImageW(
+            hInst, MAKEINTRESOURCEW(1), IMAGE_ICON, 24, 24, LR_DEFAULTCOLOR));
+        hAppIconLarge = static_cast<HICON>(LoadImageW(
+            hInst, MAKEINTRESOURCEW(1), IMAGE_ICON, 48, 48, LR_DEFAULTCOLOR));
 
         if (hAppIconSmall)
-            SendMessageW(hwnd, WM_SETICON, ICON_SMALL, (LPARAM)hAppIconSmall);
-
+            SendMessageW(hwnd, WM_SETICON, ICON_SMALL, reinterpret_cast<LPARAM>(hAppIconSmall));
         if (hAppIconLarge)
-            SendMessageW(hwnd, WM_SETICON, ICON_BIG, (LPARAM)hAppIconLarge);
+            SendMessageW(hwnd, WM_SETICON, ICON_BIG, reinterpret_cast<LPARAM>(hAppIconLarge));
+
         INITCOMMONCONTROLSEX icex{};
         icex.dwSize = sizeof(icex);
         icex.dwICC = ICC_PROGRESS_CLASS;
         InitCommonControlsEx(&icex);
-        hBgBrush = CreateSolidBrush(BG_COLOR);
-        hPanelBrush = CreateSolidBrush(PANEL_COLOR);
-        hEditBrush = CreateSolidBrush(PANEL_COLOR);
 
-        hFont = CreateFontW(
-            20, 0, 0, 0, FW_NORMAL,
-            FALSE, FALSE, FALSE,
-            DEFAULT_CHARSET,
-            OUT_DEFAULT_PRECIS,
-            CLIP_DEFAULT_PRECIS,
-            CLEARTYPE_QUALITY,
-            DEFAULT_PITCH,
-            L"Segoe UI");
+        hBgBrush = Theme::CreateThemeBrush(BG_COLOR);
+        hPanelBrush = Theme::CreateThemeBrush(PANEL_COLOR);
+        hEditBrush = Theme::CreateThemeBrush(PANEL_COLOR);
 
-        hTimeFont = CreateFontW(
-            37, 0, 0, 0, FW_NORMAL,
-            FALSE, FALSE, FALSE,
-            DEFAULT_CHARSET,
-            OUT_DEFAULT_PRECIS,
-            CLIP_DEFAULT_PRECIS,
-            CLEARTYPE_QUALITY,
-            DEFAULT_PITCH,
-            L"Segoe UI");
-
-        hTitleFont = CreateFontW(
-            46, 0, 0, 0, FW_BOLD,
-            FALSE, FALSE, FALSE,
-            DEFAULT_CHARSET,
-            OUT_DEFAULT_PRECIS,
-            CLIP_DEFAULT_PRECIS,
-            CLEARTYPE_QUALITY,
-            DEFAULT_PITCH,
-            L"Segoe UI");
+        hFont = Theme::CreateUIFont(20, FW_NORMAL);
+        hTimeFont = Theme::CreateUIFont(37, FW_NORMAL);
+        hTitleFont = Theme::CreateUIFont(46, FW_BOLD);
 
         // Source file
-
         hInput = CreateEdit(hwnd, ID_INPUT);
-        hFileInfo = CreateLabel(hwnd, L"");
+        hFileInfo = CreateLabel(hwnd, L"Перетащите видео сюда или нажмите «Обзор...»");
         hBrowse = CreateButton(hwnd, ID_BROWSE, L"Обзор...");
 
         // Time range
-
         hStart = CreateEdit(hwnd, ID_START, L"00:00:00");
         hEnd = CreateEdit(hwnd, ID_END, L"00:00:10");
         SetFont(hStart, hTimeFont);
@@ -258,7 +554,7 @@ LRESULT CALLBACK WindowProc(
             WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
             0, 0, 100, 100,
             hwnd,
-            (HMENU)(INT_PTR)ID_PREVIEW_START,
+            reinterpret_cast<HMENU>(static_cast<INT_PTR>(ID_PREVIEW_START)),
             nullptr, nullptr);
 
         hPreviewEnd = CreateWindowW(
@@ -266,27 +562,21 @@ LRESULT CALLBACK WindowProc(
             WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
             0, 0, 100, 100,
             hwnd,
-            (HMENU)(INT_PTR)ID_PREVIEW_END,
+            reinterpret_cast<HMENU>(static_cast<INT_PTR>(ID_PREVIEW_END)),
             nullptr, nullptr);
 
         // Output
-
         hOutput = CreateEdit(hwnd, ID_OUTPUT);
         hSave = CreateButton(hwnd, ID_SAVE, L"Сохранить...");
 
         // Bottom
-        hStatus = CreateLabel(
-            hwnd,
-            L"Выберите исходное видео");
-            SetWindowLongPtrW(
-    hStatus,
-    GWL_STYLE,
-    GetWindowLongPtrW(hStatus, GWL_STYLE) | SS_RIGHT);
+        hStatus = CreateLabel(hwnd, L"Выберите исходное видео");
+        SetWindowLongPtrW(
+            hStatus,
+            GWL_STYLE,
+            GetWindowLongPtrW(hStatus, GWL_STYLE) | SS_RIGHT);
 
-        hCut = CreateButton(
-            hwnd,
-            ID_CUT,
-            L"Обрезать видео");
+        hCut = CreateButton(hwnd, ID_CUT, L"Обрезать видео");
 
         hProgress = CreateWindowExW(
             0,
@@ -296,21 +586,11 @@ LRESULT CALLBACK WindowProc(
             0, 0, 100, 20,
             hwnd,
             nullptr,
-            GetModuleHandleW(nullptr),
+            hInst,
             nullptr);
 
-        SendMessageW(
-            hProgress,
-            PBM_SETBKCOLOR,
-            0,
-            (LPARAM)Theme::PanelSecondary);
-
-        SendMessageW(
-            hProgress,
-            PBM_SETBARCOLOR,
-            0,
-            (LPARAM)Theme::Accent);
-
+        SendMessageW(hProgress, PBM_SETBKCOLOR, 0, static_cast<LPARAM>(Theme::PanelSecondary));
+        SendMessageW(hProgress, PBM_SETBARCOLOR, 0, static_cast<LPARAM>(Theme::Accent));
         SendMessageW(hProgress, PBM_SETRANGE, 0, MAKELPARAM(0, 100));
         SendMessageW(hProgress, PBM_SETPOS, 0, 0);
 
@@ -324,48 +604,45 @@ LRESULT CALLBACK WindowProc(
         Layout(hwnd);
         return 0;
 
- case WM_CTLCOLORSTATIC:
-{
-    HDC dc = (HDC)wParam;
-    HWND hCtrl = (HWND)lParam;
-
-    if (hCtrl == hStatus)
-{
-    SetTextColor(dc, RGB(255, 160, 102));
-    SetBkMode(dc, OPAQUE);
-    SetBkColor(dc, BG_COLOR);
-
-    return (LRESULT)hBgBrush;
-}
-
-    if (hCtrl == hFileInfo)
+    case WM_CTLCOLORSTATIC:
     {
-        SetTextColor(dc, RGB(118, 148, 106)); // Autumn Green #76946A
+        HDC dc = reinterpret_cast<HDC>(wParam);
+        HWND hCtrl = reinterpret_cast<HWND>(lParam);
+
+        if (hCtrl == hStatus)
+        {
+            SetTextColor(dc, RGB(255, 160, 102));
+            SetBkMode(dc, OPAQUE);
+            SetBkColor(dc, BG_COLOR);
+            return reinterpret_cast<LRESULT>(hBgBrush);
+        }
+
+        if (hCtrl == hFileInfo)
+        {
+            SetTextColor(dc, RGB(118, 148, 106)); // Autumn Green #76946A
+            SetBkMode(dc, TRANSPARENT);
+            return reinterpret_cast<LRESULT>(hPanelBrush);
+        }
+
+        SetTextColor(dc, TEXT_COLOR);
         SetBkMode(dc, TRANSPARENT);
-
-        return (LRESULT)hPanelBrush;
+        return reinterpret_cast<LRESULT>(hPanelBrush);
     }
-
-    SetTextColor(dc, TEXT_COLOR);
-    SetBkMode(dc, TRANSPARENT);
-
-    return (LRESULT)hPanelBrush;
-}
 
     case WM_CTLCOLOREDIT:
     {
-        HDC dc = (HDC)wParam;
+        HDC dc = reinterpret_cast<HDC>(wParam);
         SetTextColor(dc, TEXT_COLOR);
         SetBkColor(dc, PANEL_COLOR);
-        return (LRESULT)hEditBrush;
+        return reinterpret_cast<LRESULT>(hEditBrush);
     }
 
     case WM_CTLCOLORBTN:
-        return (LRESULT)hBgBrush;
+        return reinterpret_cast<LRESULT>(hBgBrush);
 
     case WM_DRAWITEM:
     {
-        auto dis = (DRAWITEMSTRUCT *)lParam;
+        auto dis = reinterpret_cast<DRAWITEMSTRUCT *>(lParam);
 
         if (dis->CtlID == ID_BROWSE ||
             dis->CtlID == ID_SAVE ||
@@ -378,7 +655,6 @@ LRESULT CALLBACK WindowProc(
         if (dis->CtlID == ID_PREVIEW_START ||
             dis->CtlID == ID_PREVIEW_END)
         {
-            // Фон области предпросмотра
             FillRect(dis->hDC, &dis->rcItem, hPanelBrush);
 
             Gdiplus::Bitmap *bitmap =
@@ -389,28 +665,20 @@ LRESULT CALLBACK WindowProc(
             if (bitmap && bitmap->GetLastStatus() == Gdiplus::Ok)
             {
                 Gdiplus::Graphics graphics(dis->hDC);
-
-                // Внутренний отступ от рамки
                 constexpr int inset = 3;
 
-                int width =
-                    dis->rcItem.right - dis->rcItem.left - inset * 2;
+                int width = dis->rcItem.right - dis->rcItem.left - inset * 2;
+                int height = dis->rcItem.bottom - dis->rcItem.top - inset * 2;
 
-                int height =
-                    dis->rcItem.bottom - dis->rcItem.top - inset * 2;
-
-                float scaleX = (float)width / bitmap->GetWidth();
-                float scaleY = (float)height / bitmap->GetHeight();
+                float scaleX = static_cast<float>(width) / bitmap->GetWidth();
+                float scaleY = static_cast<float>(height) / bitmap->GetHeight();
                 float scale = (std::min)(scaleX, scaleY);
 
-                int drawWidth = (int)(bitmap->GetWidth() * scale);
-                int drawHeight = (int)(bitmap->GetHeight() * scale);
+                int drawWidth = static_cast<int>(bitmap->GetWidth() * scale);
+                int drawHeight = static_cast<int>(bitmap->GetHeight() * scale);
 
-                int x = dis->rcItem.left + inset +
-                        (width - drawWidth) / 2;
-
-                int y = dis->rcItem.top + inset +
-                        (height - drawHeight) / 2;
+                int x = dis->rcItem.left + inset + (width - drawWidth) / 2;
+                int y = dis->rcItem.top + inset + (height - drawHeight) / 2;
 
                 graphics.DrawImage(bitmap, x, y, drawWidth, drawHeight);
             }
@@ -420,7 +688,6 @@ LRESULT CALLBACK WindowProc(
                 SetTextColor(dis->hDC, MUTED_COLOR);
 
                 RECT textRect = dis->rcItem;
-
                 DrawTextW(
                     dis->hDC,
                     dis->CtlID == ID_PREVIEW_START
@@ -431,32 +698,23 @@ LRESULT CALLBACK WindowProc(
                     DT_CENTER | DT_VCENTER | DT_SINGLELINE);
             }
 
-            // Рамка поверх изображения
-            HPEN pen = CreatePen(
-                PS_SOLID,
-                2,
-                Theme::AccentSecondary);
-
+            HPEN pen = CreatePen(PS_SOLID, 2, Theme::AccentSecondary);
             HGDIOBJ oldPen = SelectObject(dis->hDC, pen);
-            HGDIOBJ oldBrush = SelectObject(
-                dis->hDC,
-                GetStockObject(NULL_BRUSH));
+            HGDIOBJ oldBrush = SelectObject(dis->hDC, GetStockObject(NULL_BRUSH));
 
             Rectangle(
                 dis->hDC,
                 dis->rcItem.left + 1,
                 dis->rcItem.top + 1,
-                dis->rcItem.right - 1,
+                                dis->rcItem.right - 1,
                 dis->rcItem.bottom - 1);
 
             SelectObject(dis->hDC, oldPen);
             SelectObject(dis->hDC, oldBrush);
-
             DeleteObject(pen);
 
             return TRUE;
         }
-
         break;
     }
 
@@ -472,96 +730,14 @@ LRESULT CALLBACK WindowProc(
             return 0;
 
         case ID_CUT:
-            CutVideo();
+            CutVideo(hwnd);
             return 0;
 
         case ID_START:
         case ID_END:
             if (HIWORD(wParam) == EN_KILLFOCUS)
             {
-                wchar_t timeText[32]{};
-                GetWindowTextW(
-                    (HWND)lParam,
-                    timeText,
-                    32);
-
-                int hours = 0;
-                int minutes = 0;
-                int seconds = 0;
-
-                if (swscanf_s(
-                        timeText,
-                        L"%d:%d:%d",
-                        &hours,
-                        &minutes,
-                        &seconds) != 3)
-                {
-                    return 0;
-                }
-
-                if (hours < 0 || minutes < 0 ||
-                    minutes > 59 || seconds < 0 ||
-                    seconds > 59)
-                {
-                    return 0;
-                }
-
-                double timeSeconds =
-                    hours * 3600.0 +
-                    minutes * 60.0 +
-                    seconds;
-
-                double startTime = 0.0;
-                double endTime = 0.0;
-
-                if (!ParseTime(GetControlText(hStart), startTime) ||
-                    !ParseTime(GetControlText(hEnd), endTime))
-                {
-                    SetWindowTextW(hStatus, L"Неверный формат времени");
-                    return 0;
-                }
-
-                if (startTime >= endTime)
-                {
-                    SetWindowTextW(hStatus, L"Начало должно быть раньше конца");
-                    return 0;
-                }
-
-                if (videoInfo.duration > 0 &&
-                    endTime > videoInfo.duration)
-                {
-                    SetWindowTextW(hStatus, L"Конец выходит за длительность видео");
-                    return 0;
-                }
-
-                SetWindowTextW(hStatus, L"Временной диапазон корректен");
-
-                if (LOWORD(wParam) == ID_END)
-                {
-                    timeSeconds = (std::max)(0.0,
-                                             timeSeconds - 0.5);
-                }
-
-                Gdiplus::Bitmap *newBitmap =
-                    ExtractFrame(
-                        GetControlText(hInput),
-                        timeSeconds);
-
-                if (newBitmap)
-                {
-                    if (LOWORD(wParam) == ID_START)
-                    {
-                        delete startBitmap;
-                        startBitmap = newBitmap;
-                        InvalidateRect(hPreviewStart, nullptr, TRUE);
-                    }
-                    else
-                    {
-                        delete endBitmap;
-                        endBitmap = newBitmap;
-                        InvalidateRect(hPreviewEnd, nullptr, TRUE);
-                    }
-                }
+                HandleTimeChanged(hwnd, LOWORD(wParam));
             }
             return 0;
         }
@@ -575,9 +751,6 @@ LRESULT CALLBACK WindowProc(
         PAINTSTRUCT ps;
         HDC dc = BeginPaint(hwnd, &ps);
 
-        RECT r;
-        GetClientRect(hwnd, &r);
-
         Graphics graphics(dc);
         graphics.SetSmoothingMode(SmoothingModeAntiAlias);
 
@@ -587,98 +760,48 @@ LRESULT CALLBACK WindowProc(
             GetGValue(Theme::Background),
             GetBValue(Theme::Background)));
 
-        // =====================================
-        // Main panels
-        // =====================================
-
         // Left panel: source and output
-        DrawRoundedPanel(
-            graphics,
-            20, 185,
-            590, 375,
-            18,
-            Theme::Panel,
-            Theme::Border);
+        DrawRoundedPanel(graphics, 20, 185, 590, 375, 18, Theme::Panel, Theme::Border);
 
         // Right panel: start preview
-        DrawRoundedPanel(
-            graphics,
-            625, 185,
-            455, 180,
-            18,
-            Theme::Panel,
-            Theme::Border);
+        DrawRoundedPanel(graphics, 625, 185, 455, 180, 18, Theme::Panel, Theme::Border);
 
         // Right panel: end preview
-        DrawRoundedPanel(
-            graphics,
-            625, 380,
-            455, 180,
-            18,
-            Theme::Panel,
-            Theme::Border);
+        DrawRoundedPanel(graphics, 625, 380, 455, 180, 18, Theme::Panel, Theme::Border);
 
         // Bottom panel
         DrawRoundedPanel(graphics, 20, 595, 1060, 95, 18, Theme::Panel, Theme::Border);
 
-        // =====================================
         // Header
-        // =====================================
-
         SolidBrush accentBrush(Color(
             255,
             GetRValue(Theme::Accent),
             GetGValue(Theme::Accent),
             GetBValue(Theme::Accent)));
 
-        graphics.FillRectangle(
-            &accentBrush,
-            34, 52, 5, 75);
+        graphics.FillRectangle(&accentBrush, 34, 52, 5, 75);
 
         SelectObject(dc, hTitleFont);
-
         SetBkMode(dc, TRANSPARENT);
         SetTextColor(dc, Theme::Text);
-
-        TextOutW(
-            dc,
-            60, 38,
-            L"Video Cutter",
-            12);
+        TextOutW(dc, 60, 38, L"Video Cutter", 12);
 
         SelectObject(dc, hFont);
-
         SetTextColor(dc, Theme::TextMuted);
+        TextOutW(dc, 60, 112, L"Быстрая обрезка без перекодирования", 35);
 
-        TextOutW(
-            dc,
-            60, 112,
-            L"Быстрая обрезка без перекодирования",
-            35);
-
-        // =====================================
         // Section headings
-        // =====================================
-
         SetTextColor(dc, Theme::Text);
-
         TextOutW(dc, 90, 205, L"Исходный видеофайл", 18);
         TextOutW(dc, 90, 415, L"Выходной файл", 14);
 
         TextOutW(dc, 895, 215, L"Начало", 6);
         TextOutW(dc, 895, 420, L"Конец", 5);
 
-        // =====================================
         // Logo
-        // =====================================
-
-        if (appLogo &&
-            appLogo->GetLastStatus() == Gdiplus::Ok)
+        if (appLogo && appLogo->GetLastStatus() == Gdiplus::Ok)
         {
-            graphics.DrawImage(
-                appLogo,
-                900, 15,
-                145, 125);
+            graphics.DrawImage(appLogo, 900, 15, 145, 125);
         }
 
         EndPaint(hwnd, &ps);
@@ -686,8 +809,23 @@ LRESULT CALLBACK WindowProc(
     }
 
     case WM_DESTROY:
+        if (cutThread.joinable())
+            cutThread.join();
+
         delete appLogo;
         appLogo = nullptr;
+
+        delete startBitmap;
+        startBitmap = nullptr;
+
+        delete endBitmap;
+        endBitmap = nullptr;
+
+        if (hAppIconSmall)
+            DestroyIcon(hAppIconSmall);
+        if (hAppIconLarge)
+            DestroyIcon(hAppIconLarge);
+
         DeleteObject(hBgBrush);
         DeleteObject(hPanelBrush);
         DeleteObject(hEditBrush);
@@ -699,210 +837,6 @@ LRESULT CALLBACK WindowProc(
         return 0;
     }
 
-    return DefWindowProcW(
-        hwnd, message, wParam, lParam);
+    return DefWindowProcW(hwnd, message, wParam, lParam);
 }
 
-
-
-std::wstring GetControlText(HWND control)
-{
-    int length = GetWindowTextLengthW(control);
-
-    std::wstring text(length + 1, L'\0');
-
-    GetWindowTextW(
-        control,
-        text.data(),
-        length + 1);
-
-    text.resize(length);
-
-    return text;
-}
-
-std::wstring MakeOutputName(const std::wstring &input)
-{
-    size_t slash = input.find_last_of(L"\\/");
-    size_t dot = input.find_last_of(L'.');
-
-    if (dot == std::wstring::npos ||
-        (slash != std::wstring::npos && dot < slash))
-    {
-        return input + L"_cut";
-    }
-
-    return input.substr(0, dot) +
-           L"_cut" + input.substr(dot);
-}
-
-void ChooseInput(HWND hwnd)
-{
-    wchar_t filename[32768] = {};
-
-    OPENFILENAMEW ofn{};
-    ofn.lStructSize = sizeof(ofn);
-    ofn.hwndOwner = hwnd;
-    ofn.lpstrFilter =
-        L"Video files\0*.mp4;*.mkv;*.mov;*.avi;*.webm;*.m4v;*.ts\0"
-        L"All files\0*.*\0";
-    ofn.lpstrFile = filename;
-    ofn.nMaxFile = 32768;
-    ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
-    ofn.lpstrTitle = L"Выберите исходный видеофайл";
-
-    if (GetOpenFileNameW(&ofn))
-    {
-        SetWindowTextW(hInput, filename);
-        SendMessageW(hInput, EM_SETSEL, (WPARAM)-1, (LPARAM)-1);
-        SendMessageW(hInput, EM_SCROLLCARET, 0, 0);
-
-        std::wstring output = MakeOutputName(filename);
-        SetWindowTextW(hOutput, output.c_str());
-        SendMessageW(hOutput, EM_SETSEL, (WPARAM)-1, (LPARAM)-1);
-        SendMessageW(hOutput, EM_SCROLLCARET, 0, 0);
-
-        if (ProbeVideo(filename, videoInfo))
-        {
-            SetWindowTextW(
-                hStatus,
-                L"Информация о видео загружена");
-
-            EnableWindow(hCut, TRUE);
-
-            int totalSeconds = static_cast<int>(videoInfo.duration + 0.5);
-
-            int hours = totalSeconds / 3600;
-            int minutes = (totalSeconds % 3600) / 60;
-            int seconds = totalSeconds % 60;
-
-            wchar_t endTime[32];
-
-            swprintf_s(
-                endTime,
-                L"%02d:%02d:%02d",
-                hours,
-                minutes,
-                seconds);
-
-            SetWindowTextW(hEnd, endTime);
-            wchar_t info[512]{};
-
-            swprintf_s(
-                info,
-                L"%s | %dx%d | %.2f FPS | %02d:%02d:%02d",
-                videoInfo.format.c_str(),
-                videoInfo.width,
-                videoInfo.height,
-                videoInfo.fps,
-                hours,
-                minutes,
-                seconds);
-
-            SetWindowTextW(hFileInfo, info);
-            delete startBitmap;
-            startBitmap = ExtractFrame(filename, 0.5);
-
-            delete endBitmap;
-            endBitmap = ExtractFrame(
-                filename,
-                (std::max)(0.0, videoInfo.duration - 1.0));
-
-            InvalidateRect(hPreviewStart, nullptr, TRUE);
-            InvalidateRect(hPreviewEnd, nullptr, TRUE);
-        }
-        else
-        {
-            SetWindowTextW(
-                hStatus,
-                L"Не удалось прочитать информацию о видео");
-
-            SetWindowTextW(hFileInfo, L"Ошибка чтения видео");
-            EnableWindow(hCut, FALSE);
-        }
-
-        InvalidateRect(hwnd, nullptr, TRUE);
-    }
-}
-
-void ChooseOutput(HWND hwnd)
-{
-    wchar_t filename[32768] = {};
-
-    GetWindowTextW(hOutput, filename, 32768);
-
-    OPENFILENAMEW ofn{};
-    ofn.lStructSize = sizeof(ofn);
-    ofn.hwndOwner = hwnd;
-    ofn.lpstrFilter =
-        L"MP4 video\0*.mp4\0"
-        L"MKV video\0*.mkv\0"
-        L"All files\0*.*\0";
-    ofn.lpstrFile = filename;
-    ofn.nMaxFile = 32768;
-    ofn.Flags = OFN_PATHMUSTEXIST | OFN_OVERWRITEPROMPT;
-    ofn.lpstrTitle = L"Сохранить видеофрагмент";
-
-    if (GetSaveFileNameW(&ofn))
-    {
-        SetWindowTextW(hOutput, filename);
-        SendMessageW(hOutput, EM_SETSEL, (WPARAM)-1, (LPARAM)-1);
-        SendMessageW(hOutput, EM_SCROLLCARET, 0, 0);
-    }
-}
-
-bool CutVideo()
-{
-    if (isCutting)
-        return false;
-
-    std::wstring input = GetControlText(hInput);
-    std::wstring output = GetControlText(hOutput);
-
-    if (input.empty() || output.empty())
-    {
-        SetWindowTextW(hStatus, L"Не выбран входной или выходной файл");
-        return false;
-    }
-
-    double startTime = 0.0;
-    double endTime = 0.0;
-
-    if (!ParseTime(GetControlText(hStart), startTime) ||
-        !ParseTime(GetControlText(hEnd), endTime) ||
-        startTime >= endTime ||
-        endTime > videoInfo.duration)
-    {
-        SetWindowTextW(hStatus, L"Проверьте временной диапазон");
-        return false;
-    }
-
-    double duration = endTime - startTime;
-
-    std::wstring ffmpeg = GetExecutablePath() + L"\\bin\\ffmpeg.exe";
-
-    std::wstring command =
-        L"\"" + ffmpeg + L"\""
-                         L" -y -ss " +
-        std::to_wstring(startTime) +
-        L" -i \"" + input + L"\"" +
-        L" -t " + std::to_wstring(duration) +
-        L" -c copy -progress pipe:1 -nostats \"" + output + L"\"";
-
-    HWND hwnd = GetParent(hStatus);
-
-    isCutting = true;
-    EnableWindow(hCut, FALSE);
-
-    SendMessageW(hProgress, PBM_SETPOS, 0, 0);
-
-    SetWindowTextW(hStatus, L"Выполняется нарезка видео...");
-
-    cutThread = std::thread(
-        [command, ffmpeg, hwnd, duration]()
-        {
-            RunCutProcess(command, ffmpeg, hwnd, duration);
-        });
-
-    return true;
-}

@@ -16,6 +16,7 @@ HBRUSH hBgBrush = nullptr;
 HBRUSH hPanelBrush = nullptr;
 HBRUSH hEditBrush = nullptr;
 
+
 LayoutMetrics CalculateLayout(int clientW, int clientH)
 {
     LayoutMetrics m{};
@@ -23,24 +24,24 @@ LayoutMetrics CalculateLayout(int clientW, int clientH)
     m.clientH = (std::max)(clientH, Theme::WindowHeight);
 
     constexpr int margin = 20;
-    constexpr int gap = 15;
-    constexpr int headerH = 185;
-    constexpr int footerH = 45;
-    constexpr int bottomPanelH = 95;
+    constexpr int gap = 12;
+    constexpr int headerH = 120;
+    constexpr int footerH = 35;
+    constexpr int bottomPanelH = 80;
 
     // Header
-    m.accentBar = { 34, 52, 39, 127 };
-    m.titlePos = { 60, 38 };
-    m.subtitlePos = { 60, 112 };
-    m.logoRect = { m.clientW - 185, 15, m.clientW - 40, 140 };
+    m.accentBar = { 34, 30, 39, 100 };
+    m.titlePos = { 60, 20 };
+    m.subtitlePos = { 60, 76 };
+    m.logoRect = { m.clientW - 140, 8, m.clientW - 35, 113 };
 
     // Vertical bounds for middle panels
     int middleTop = headerH;
     int bottomPanelTop = m.clientH - footerH - bottomPanelH;
-    int middleBottom = bottomPanelTop - 35;
+    int middleBottom = bottomPanelTop - 20;
     int middleH = middleBottom - middleTop;
 
-    // Horizontal split: ~55% left panel, ~45% right panels
+    // Horizontal split
     int usableW = m.clientW - margin * 2 - gap;
     int leftW = static_cast<int>(usableW * 0.555);
     int rightW = usableW - leftW;
@@ -53,73 +54,157 @@ LayoutMetrics CalculateLayout(int clientW, int clientH)
     int rightTopH = (middleH - gap) / 2;
     int rightBottomH = middleH - gap - rightTopH;
 
-    m.rightTopPanel = { rightX, middleTop, rightX + rightW, middleTop + rightTopH };
-    m.rightBottomPanel = { rightX, middleTop + rightTopH + gap, rightX + rightW, middleBottom };
+    m.rightTopPanel = {
+        rightX, middleTop,
+        rightX + rightW, middleTop + rightTopH
+    };
 
-    // Left panel contents (vertically centered inside leftPanel)
-    int innerPad = 20;
-    int btnW = 140;
+    m.rightBottomPanel = {
+        rightX, middleTop + rightTopH + gap,
+        rightX + rightW, middleBottom
+    };
+
+    // Left panel contents
+    int innerPad = 18;
+    int btnW = 120;
     int editW = leftW - innerPad * 2 - btnW - 10;
 
-    int srcBlockY = middleTop + (middleH - 255) / 2;
+    int srcBlockY = middleTop + 5;
+
     m.srcLabelPos = { leftX + innerPad + 4, srcBlockY };
-    m.inputRect = { leftX + innerPad, srcBlockY + 35, leftX + innerPad + editW, srcBlockY + 79 };
-    m.browseRect = { leftX + innerPad + editW + 10, srcBlockY + 35, leftX + leftW - innerPad, srcBlockY + 79 };
-    m.fileInfoRect = { leftX + innerPad, srcBlockY + 92, leftX + leftW - innerPad, srcBlockY + 124 };
+    m.inputRect = {
+        leftX + innerPad,
+        srcBlockY + 35,
+        leftX + innerPad + editW,
+        srcBlockY + 75
+    };
 
-    int dstBlockY = srcBlockY + 165;
+    m.browseRect = {
+        leftX + innerPad + editW + 10,
+        srcBlockY + 35,
+        leftX + leftW - innerPad,
+        srcBlockY + 75
+    };
+
+    m.fileInfoRect = {
+        leftX + innerPad,
+        srcBlockY + 87,
+        leftX + leftW - innerPad,
+        srcBlockY + 115
+    };
+
+    int dstBlockY = middleBottom - 105;
+
     m.dstLabelPos = { leftX + innerPad + 4, dstBlockY };
-    m.outputRect = { leftX + innerPad, dstBlockY + 35, leftX + innerPad + editW, dstBlockY + 79 };
-    m.saveRect = { leftX + innerPad + editW + 10, dstBlockY + 35, leftX + leftW - innerPad, dstBlockY + 79 };
 
-    // Right panels contents (Start & End previews)
-    int timeColW = 175;
-    int previewPad = 20;
-    int previewW = rightW - previewPad * 2 - timeColW - 20;
+    m.outputRect = {
+        leftX + innerPad,
+        dstBlockY + 35,
+        leftX + innerPad + editW,
+        dstBlockY + 75
+    };
 
-    // Top preview (Start)
+    m.saveRect = {
+        leftX + innerPad + editW + 10,
+        dstBlockY + 35,
+        leftX + leftW - innerPad,
+        dstBlockY + 75
+    };
+
+    // Right panels: larger previews, narrower timer column
+    int previewPad = 14;
+    int timeColW = 130;
+    int previewGap = 12;
+
+    int previewW = rightW - previewPad * 2 - timeColW - previewGap;
+
+    // Start preview
     int topPreviewH = rightTopH - previewPad * 2;
+
     m.previewStartRect = {
         rightX + previewPad,
         middleTop + previewPad,
         rightX + previewPad + previewW,
         middleTop + previewPad + topPreviewH
     };
-    int timeX = rightX + previewPad + previewW + 20;
-    int topCenterY = middleTop + rightTopH / 2;
-    m.startLabelPos = { timeX, topCenterY - 52 };
-    m.startEditRect = { timeX, topCenterY - 12, timeX + timeColW, topCenterY + 36 };
 
-    // Bottom preview (End)
+    int timeX = rightX + previewPad + previewW + previewGap;
+    int topCenterY = middleTop + rightTopH / 2;
+
+    m.startLabelPos = { timeX, topCenterY - 43 };
+
+    m.startEditRect = {
+        timeX,
+        topCenterY - 5,
+        timeX + timeColW,
+        topCenterY + 35
+    };
+
+    // End preview
     int botTop = m.rightBottomPanel.top;
     int botPreviewH = rightBottomH - previewPad * 2;
+
     m.previewEndRect = {
         rightX + previewPad,
         botTop + previewPad,
         rightX + previewPad + previewW,
         botTop + previewPad + botPreviewH
     };
+
     int botCenterY = botTop + rightBottomH / 2;
-    m.endLabelPos = { timeX, botCenterY - 52 };
-    m.endEditRect = { timeX, botCenterY - 12, timeX + timeColW, botCenterY + 36 };
 
-    // Bottom panel (Progress + Cut button)
-    m.bottomPanel = { margin, bottomPanelTop, m.clientW - margin, bottomPanelTop + bottomPanelH };
+    m.endLabelPos = { timeX, botCenterY - 43 };
 
-    int cutBtnW = 240;
-    int cutBtnH = 65;
+    m.endEditRect = {
+        timeX,
+        botCenterY - 5,
+        timeX + timeColW,
+        botCenterY + 35
+    };
+
+    // Bottom panel
+    m.bottomPanel = {
+        margin,
+        bottomPanelTop,
+        m.clientW - margin,
+        bottomPanelTop + bottomPanelH
+    };
+
+    // Smaller cut button
+    int cutBtnW = 190;
+    int cutBtnH = 52;
+
     int cutBtnX = m.clientW - margin - 20 - cutBtnW;
     int cutBtnY = bottomPanelTop + (bottomPanelH - cutBtnH) / 2;
-    m.cutBtnRect = { cutBtnX, cutBtnY, cutBtnX + cutBtnW, cutBtnY + cutBtnH };
 
+    m.cutBtnRect = {
+        cutBtnX,
+        cutBtnY,
+        cutBtnX + cutBtnW,
+        cutBtnY + cutBtnH
+    };
+
+    // Progress bar
     int progX = margin + 20;
     int progW = cutBtnX - progX - 40;
     int progY = bottomPanelTop + (bottomPanelH - 14) / 2;
-    m.progressRect = { progX, progY, progX + progW, progY + 14 };
+
+    m.progressRect = {
+        progX,
+        progY,
+        progX + progW,
+        progY + 14
+    };
 
     // Footer status
-    int statusY = bottomPanelTop + bottomPanelH + 12;
-    m.statusRect = { m.clientW - margin - 600, statusY, m.clientW - margin - 5, statusY + 24 };
+    int statusY = bottomPanelTop + bottomPanelH + 7;
+
+    m.statusRect = {
+        m.clientW - margin - 600,
+        statusY,
+        m.clientW - margin - 5,
+        statusY + 22
+    };
 
     return m;
 }

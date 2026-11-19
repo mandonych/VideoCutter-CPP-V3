@@ -59,8 +59,8 @@ namespace Theme
     // Main window
     // =====================================
 
-    inline constexpr int WindowWidth = 1100;
-    inline constexpr int WindowHeight = 760;
+    inline constexpr int WindowWidth = 880;
+    inline constexpr int WindowHeight = 608;
 
     HFONT CreateUIFont(int height, int weight = FW_NORMAL);
     HBRUSH CreateThemeBrush(COLORREF color);

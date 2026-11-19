@@ -544,9 +544,9 @@ LRESULT CALLBACK WindowProc(
         hPanelBrush = Theme::CreateThemeBrush(PANEL_COLOR);
         hEditBrush = Theme::CreateThemeBrush(PANEL_COLOR);
 
-        hFont = Theme::CreateUIFont(20, FW_NORMAL);
-        hTimeFont = Theme::CreateUIFont(37, FW_NORMAL);
-        hTitleFont = Theme::CreateUIFont(46, FW_BOLD);
+        hFont = Theme::CreateUIFont(17, FW_NORMAL);
+        hTimeFont = Theme::CreateUIFont(29, FW_NORMAL);
+        hTitleFont = Theme::CreateUIFont(38, FW_BOLD);
 
         // Source file
         hInput = CreateEdit(hwnd, ID_INPUT);

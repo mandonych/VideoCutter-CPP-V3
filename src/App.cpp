@@ -697,7 +697,14 @@ case WM_MOUSEMOVE:
         hEnd,
         FormatTime(selectedEndTime).c_str());
 
-    InvalidateRect(hwnd, nullptr, FALSE);
+    RECT updateRect = m.timelineRect;
+
+updateRect.left -= 15;
+updateRect.top -= 20;
+updateRect.right += 15;
+updateRect.bottom = m.durationPos.y + 30;
+
+InvalidateRect(hwnd, &updateRect, FALSE);
 
     return 0;
 }
@@ -1338,7 +1345,17 @@ DeleteObject(resultFont);
     SelectObject(memDC, oldFont);
 
     // Blit buffer to screen
-    BitBlt(dc, 0, 0, cw, ch, memDC, 0, 0, SRCCOPY);
+    // Blit only the invalidated area
+BitBlt(
+    dc,
+    ps.rcPaint.left,
+    ps.rcPaint.top,
+    ps.rcPaint.right - ps.rcPaint.left,
+    ps.rcPaint.bottom - ps.rcPaint.top,
+    memDC,
+    ps.rcPaint.left,
+    ps.rcPaint.top,
+    SRCCOPY);
 
     SelectObject(memDC, oldBmp);
     DeleteObject(memBmp);

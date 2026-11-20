@@ -199,7 +199,10 @@ void UpdateLoopCalculation(HWND hwnd) {
             return;
         }
 
-        double repeats = std::floor(targetValue / videoInfo.duration);
+        constexpr double durationTolerance = 0.1;
+
+double repeats = std::floor(
+    (targetValue + durationTolerance) / videoInfo.duration);
 
         if (repeats < 1.0 ||
             repeats > static_cast<double>((std::numeric_limits<int>::max)())) {

@@ -98,6 +98,13 @@ Gdiplus::Color ToGdiPlusColor(COLORREF color)
 double selectedStartTime = 0.0;
 double selectedEndTime = 0.0;
 
+// Loop calculation data
+std::uintmax_t sourceFileSize = 0;
+int loopRepeatCount = 0;
+double loopResultDuration = 0.0;
+std::uintmax_t loopResultSize = 0;
+bool loopCalculationValid = false;
+
 bool isDraggingTimeline = false;
 int draggedMarker = 0; // 1 — начало, 2 — конец
 
@@ -224,6 +231,18 @@ void LoadInputVideo(HWND hwnd, const std::wstring &filename) {
   if (ProbeVideo(filename, videoInfo)) {
     SetWindowTextW(hStatus, L"Информация о видео загружена");
     EnableWindow(hCut, TRUE);
+
+        std::error_code fileSizeError;
+    sourceFileSize = std::filesystem::file_size(filename, fileSizeError);
+
+    if (fileSizeError) {
+        sourceFileSize = 0;
+    }
+
+    loopRepeatCount = 0;
+    loopResultDuration = 0.0;
+    loopResultSize = 0;
+    loopCalculationValid = false;
 
     int totalSeconds = static_cast<int>(videoInfo.duration);
     int hours = totalSeconds / 3600;

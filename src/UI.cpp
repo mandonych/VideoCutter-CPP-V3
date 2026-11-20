@@ -120,9 +120,9 @@ LayoutMetrics CalculateLayout(int clientW, int clientH, AppMode mode) {
 
     m.loopTargetRect = {
         loopX,
-        loopY + 48,
+        loopY + 80,
         loopX + 260,
-        loopY + 82
+        loopY + 114
     };
 }
   // Left panel contents
@@ -167,6 +167,10 @@ LayoutMetrics CalculateLayout(int clientW, int clientH, AppMode mode) {
 
   // Output file
   int dstBlockY = middleBottom - 80;
+
+if (mode == AppMode::Loop) {
+    dstBlockY += 12;
+}
 
   m.dstLabelPos = {leftX + innerPad + 4, dstBlockY};
 

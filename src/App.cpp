@@ -1182,9 +1182,7 @@ case ID_LOOP_TARGET:
     TextOutW(memDC, m.leftPanel.left + 20, m.loopDurationRect.top - 32,
              L"Параметры зацикливания", 23);
 
-    SetTextColor(memDC, Theme::TextMuted);
-    TextOutW(memDC, m.loopTargetRect.left, m.loopTargetRect.top - 20,
-             L"Целевое значение", 17);
+   
 
     // Estimated result
     std::wstring targetLabel =
@@ -1201,18 +1199,35 @@ TextOutW(
     static_cast<int>(targetLabel.length()));
 
 // Estimated result
-int resultX = m.loopTargetRect.right + 24;
-int resultY = m.loopTargetRect.top - 20;
+// Estimated result
+int resultAreaLeft = m.loopTargetRect.right + 24;
+int resultAreaRight = m.leftPanel.right - 24;
+int resultBlockWidth = 300;
+int resultLeftX =
+    resultAreaLeft + (resultAreaRight - resultAreaLeft - resultBlockWidth) / 2;
 
-SetTextColor(memDC, Theme::Text);
-TextOutW(memDC, resultX, resultY,
-         L"Расчётный результат", 19);
+int resultY = m.loopTargetRect.top - 80;
+
+HFONT resultFont = Theme::CreateUIFont(21, FW_NORMAL);
+HGDIOBJ oldResultFont = SelectObject(memDC, resultFont);
 
 SetTextColor(memDC, Theme::TextMuted);
 
+auto DrawCenteredResult = [&](const std::wstring& text, int y) {
+    TextOutW(
+        memDC,
+        resultLeftX,
+        y,
+        text.c_str(),
+        static_cast<int>(text.length()));
+};
+
+std::wstring durationLine;
+std::wstring sizeLine;
+std::wstring repeatsLine;
+
 if (loopCalculationValid) {
-    std::wstring durationLine =
-        L"Длительность: " + FormatTime(loopResultDuration);
+    durationLine = L"Длительность: " + FormatTime(loopResultDuration);
 
     wchar_t sizeText[128]{};
     swprintf_s(
@@ -1226,28 +1241,26 @@ if (loopCalculationValid) {
         L"Количество повторов: %d",
         loopRepeatCount);
 
-    TextOutW(
-        memDC, resultX, resultY + 28,
-        durationLine.c_str(),
-        static_cast<int>(durationLine.length()));
-
-    TextOutW(memDC, resultX, resultY + 50,
-             sizeText, static_cast<int>(wcslen(sizeText)));
-
-    TextOutW(memDC, resultX, resultY + 72,
-             repeatsText, static_cast<int>(wcslen(repeatsText)));
+    sizeLine = sizeText;
+    repeatsLine = repeatsText;
 }
 else {
-    TextOutW(memDC, resultX, resultY + 28,
-             L"Длительность: —", 16);
-
-    TextOutW(memDC, resultX, resultY + 50,
-             L"Размер файла: —", 16);
-
-    TextOutW(memDC, resultX, resultY + 72,
-             L"Количество повторов: —", 22);
+    durationLine = L"Длительность: —";
+    sizeLine = L"Размер файла: —";
+    repeatsLine = L"Количество повторов: —";
 }
-}
+
+SetTextColor(memDC, Theme::Text);
+DrawCenteredResult(L"Расчётный результат", resultY);
+
+SetTextColor(memDC, Theme::TextMuted);
+DrawCenteredResult(durationLine, resultY + 34);
+DrawCenteredResult(sizeLine, resultY + 62);
+DrawCenteredResult(repeatsLine, resultY + 90);
+
+SelectObject(memDC, oldResultFont);
+DeleteObject(resultFont);
+    }
 
     if (mode == AppMode::Cut) {
     TextOutW(memDC, m.startLabelPos.x, m.startLabelPos.y, L"Начало", 6);

@@ -161,9 +161,9 @@ LayoutMetrics CalculateLayout(int clientW, int clientH, AppMode mode) {
 
   // Timeline placeholder
   m.timelineRect = {leftX + innerPad, timeBlockY + 88, leftX + leftW - innerPad,
-                    timeBlockY + 122};
+                    timeBlockY + 102};
 
-  m.durationPos = {leftX + innerPad + 4, timeBlockY + 132};
+  m.durationPos = {leftX + innerPad + 4, timeBlockY + 108};
 
   // Output file
   int dstBlockY = middleBottom - 80;

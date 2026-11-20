@@ -16,8 +16,10 @@
 #include <cstdlib>
 #include <cstdio>
 #include <cwchar>
+#include <cmath>
 #include <filesystem>
 #include <string>
+#include <limits>
 #include <thread>
 
 // Project headers
@@ -177,6 +179,77 @@ std::wstring FormatTime(double seconds)
     return buffer;
 }
 
+void UpdateLoopCalculation(HWND hwnd) {
+    loopRepeatCount = 0;
+    loopResultDuration = 0.0;
+    loopResultSize = 0;
+    loopCalculationValid = false;
+
+    if (videoInfo.duration <= 0.0 || sourceFileSize == 0) {
+        InvalidateRect(hwnd, nullptr, FALSE);
+        return;
+    }
+
+    double targetValue = 0.0;
+
+    if (GetLoopTargetMode() == LoopTargetMode::Duration) {
+        if (!ParseTime(GetControlText(hLoopTarget), targetValue) ||
+            targetValue <= 0.0) {
+            InvalidateRect(hwnd, nullptr, FALSE);
+            return;
+        }
+
+        double repeats = std::floor(targetValue / videoInfo.duration);
+
+        if (repeats < 1.0 ||
+            repeats > static_cast<double>((std::numeric_limits<int>::max)())) {
+            InvalidateRect(hwnd, nullptr, FALSE);
+            return;
+        }
+
+        loopRepeatCount = static_cast<int>(repeats);
+    }
+    else {
+        std::wstring value = GetControlText(hLoopTarget);
+
+        for (wchar_t& ch : value) {
+            if (ch == L',')
+                ch = L'.';
+        }
+
+        wchar_t* end = nullptr;
+        double targetMB = wcstod(value.c_str(), &end);
+
+        if (end == value.c_str() || *end != L'\0' ||
+            !std::isfinite(targetMB) || targetMB <= 0.0) {
+            InvalidateRect(hwnd, nullptr, FALSE);
+            return;
+        }
+
+        long double targetBytes =
+            static_cast<long double>(targetMB) * 1024.0L * 1024.0L;
+
+        long double repeats =
+            std::floor(targetBytes / sourceFileSize);
+
+        if (repeats < 1.0L ||
+            repeats > static_cast<long double>((std::numeric_limits<int>::max)())) {
+            InvalidateRect(hwnd, nullptr, FALSE);
+            return;
+        }
+
+        loopRepeatCount = static_cast<int>(repeats);
+    }
+
+    loopResultDuration = videoInfo.duration * loopRepeatCount;
+    loopResultSize = sourceFileSize *
+                     static_cast<std::uintmax_t>(loopRepeatCount);
+
+    loopCalculationValid = true;
+
+    InvalidateRect(hwnd, nullptr, FALSE);
+}
+
 int TimelineTimeToX(double time, const RECT &r)
 {
     if (videoInfo.duration <= 0.0)
@@ -243,6 +316,8 @@ void LoadInputVideo(HWND hwnd, const std::wstring &filename) {
     loopResultDuration = 0.0;
     loopResultSize = 0;
     loopCalculationValid = false;
+
+    UpdateLoopCalculation(hwnd);
 
     int totalSeconds = static_cast<int>(videoInfo.duration);
     int hours = totalSeconds / 3600;
@@ -885,12 +960,14 @@ SetFont(hLoopTarget, hTimeFont);
         case ID_LOOP_DURATION:
     SetLoopTargetMode(LoopTargetMode::Duration);
     SetWindowTextW(hLoopTarget, L"00:10:00");
+    UpdateLoopCalculation(hwnd);
     InvalidateRect(hwnd, nullptr, TRUE);
     return 0;
 
 case ID_LOOP_SIZE:
     SetLoopTargetMode(LoopTargetMode::Size);
     SetWindowTextW(hLoopTarget, L"1000");
+    UpdateLoopCalculation(hwnd);
     InvalidateRect(hwnd, nullptr, TRUE);
     return 0;
 
@@ -907,11 +984,18 @@ case ID_LOOP_SIZE:
       return 0;
 
     case ID_START:
-    case ID_END:
-      if (HIWORD(wParam) == EN_KILLFOCUS) {
+case ID_END:
+    if (HIWORD(wParam) == EN_KILLFOCUS) {
         HandleTimeChanged(hwnd, LOWORD(wParam));
-      }
-      return 0;
+    }
+    return 0;
+
+case ID_LOOP_TARGET:
+    if (HIWORD(wParam) == EN_CHANGE ||
+        HIWORD(wParam) == EN_KILLFOCUS) {
+        UpdateLoopCalculation(hwnd);
+    }
+    return 0;
     }
     break;
 
@@ -1000,18 +1084,66 @@ case ID_LOOP_SIZE:
              L"Целевое значение", 17);
 
     // Estimated result
-    int resultX = m.loopTargetRect.right + 24;
-    int resultY = m.loopTargetRect.top - 20;
+    std::wstring targetLabel =
+    GetLoopTargetMode() == LoopTargetMode::Duration
+        ? L"Целевая длительность (ЧЧ:ММ:СС)"
+        : L"Целевой размер (МБ)";
 
-    SetTextColor(memDC, Theme::Text);
-    TextOutW(memDC, resultX, resultY,
-             L"Расчётный результат", 19);
+SetTextColor(memDC, Theme::TextMuted);
+TextOutW(
+    memDC,
+    m.loopTargetRect.left,
+    m.loopTargetRect.top - 20,
+    targetLabel.c_str(),
+    static_cast<int>(targetLabel.length()));
 
-    SetTextColor(memDC, Theme::TextMuted);
+// Estimated result
+int resultX = m.loopTargetRect.right + 24;
+int resultY = m.loopTargetRect.top - 20;
+
+SetTextColor(memDC, Theme::Text);
+TextOutW(memDC, resultX, resultY,
+         L"Расчётный результат", 19);
+
+SetTextColor(memDC, Theme::TextMuted);
+
+if (loopCalculationValid) {
+    std::wstring durationLine =
+        L"Длительность: " + FormatTime(loopResultDuration);
+
+    wchar_t sizeText[128]{};
+    swprintf_s(
+        sizeText,
+        L"Размер файла: %.1f МБ",
+        static_cast<double>(loopResultSize) / (1024.0 * 1024.0));
+
+    wchar_t repeatsText[128]{};
+    swprintf_s(
+        repeatsText,
+        L"Количество повторов: %d",
+        loopRepeatCount);
+
+    TextOutW(
+        memDC, resultX, resultY + 28,
+        durationLine.c_str(),
+        static_cast<int>(durationLine.length()));
+
+    TextOutW(memDC, resultX, resultY + 50,
+             sizeText, static_cast<int>(wcslen(sizeText)));
+
+    TextOutW(memDC, resultX, resultY + 72,
+             repeatsText, static_cast<int>(wcslen(repeatsText)));
+}
+else {
     TextOutW(memDC, resultX, resultY + 28,
              L"Длительность: —", 16);
+
     TextOutW(memDC, resultX, resultY + 50,
              L"Размер файла: —", 16);
+
+    TextOutW(memDC, resultX, resultY + 72,
+             L"Количество повторов: —", 22);
+}
 }
 
     if (mode == AppMode::Cut) {

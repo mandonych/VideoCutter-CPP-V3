@@ -502,6 +502,99 @@ bool CutVideo(HWND hwnd) {
   return true;
 }
 
+bool LoopVideo(HWND hwnd) {
+    if (isCutting)
+        return false;
+
+    std::wstring input = GetControlText(hInput);
+    std::wstring output = GetControlText(hOutput);
+
+    if (input.empty() || output.empty()) {
+        SetWindowTextW(hStatus, L"Не выбран входной или выходной файл");
+        return false;
+    }
+
+    if (!loopCalculationValid || loopRepeatCount < 1) {
+        SetWindowTextW(
+            hStatus,
+            L"Невозможно создать цикл: проверьте целевое значение");
+        return false;
+    }
+
+    if (!std::filesystem::exists(input)) {
+        SetWindowTextW(hStatus, L"Исходный файл не найден");
+        return false;
+    }
+
+    std::error_code pathError;
+    auto inputPath = std::filesystem::weakly_canonical(input, pathError);
+
+    if (pathError) {
+        SetWindowTextW(hStatus, L"Не удалось определить путь исходного файла");
+        return false;
+    }
+
+    auto outputPath = std::filesystem::absolute(output, pathError).lexically_normal();
+
+    if (pathError) {
+        SetWindowTextW(hStatus, L"Некорректный путь выходного файла");
+        return false;
+    }
+
+    if (_wcsicmp(
+            inputPath.c_str(),
+            outputPath.c_str()) == 0) {
+        SetWindowTextW(
+            hStatus,
+            L"Выходной файл не должен совпадать с исходным");
+        return false;
+    }
+
+    std::filesystem::path ffmpegPath =
+        std::filesystem::path(GetExecutablePath()) /
+        L"bin" / L"ffmpeg.exe";
+
+    if (!std::filesystem::exists(ffmpegPath)) {
+        SetWindowTextW(hStatus, L"Не найден bin\\ffmpeg.exe");
+
+        MessageBoxW(
+            hwnd,
+            L"Исполняемый файл bin\\ffmpeg.exe не найден рядом с программой.",
+            L"Video Cutter",
+            MB_OK | MB_ICONERROR);
+
+        return false;
+    }
+
+    std::wstring ffmpeg = ffmpegPath.wstring();
+
+    // Количество дополнительных повторов
+    int additionalLoops = loopRepeatCount - 1;
+
+    std::wstring command =
+        L"\"" + ffmpeg + L"\"" +
+        L" -y -stream_loop " +
+        std::to_wstring(additionalLoops) +
+        L" -i \"" + input + L"\"" +
+        L" -c copy -progress pipe:1 -nostats \"" +
+        output + L"\"";
+
+    isCutting = true;
+    EnableWindow(hCut, FALSE);
+
+    SendMessageW(hProgress, PBM_SETPOS, 0, 0);
+    SetWindowTextW(hStatus, L"Создаётся зацикленное видео...");
+
+    double duration = loopResultDuration;
+
+    cutThread = std::thread(
+        [command, ffmpeg, hwnd, duration]() {
+            RunCutProcess(command, ffmpeg, hwnd, duration);
+        });
+
+    return true;
+}
+
 } // namespace
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wParam,
@@ -946,16 +1039,18 @@ SetFont(hLoopTarget, hTimeFont);
     switch (LOWORD(wParam)) {
 
             case ID_TAB_CUT:
-        SetActiveMode(AppMode::Cut);
-        Layout(hwnd);
-        InvalidateRect(hwnd, nullptr, TRUE);
-        return 0;
+    SetActiveMode(AppMode::Cut);
+    SetWindowTextW(hCut, L"Обрезать видео");
+    Layout(hwnd);
+    InvalidateRect(hwnd, nullptr, TRUE);
+    return 0;
 
-    case ID_TAB_LOOP:
-        SetActiveMode(AppMode::Loop);
-        Layout(hwnd);
-        InvalidateRect(hwnd, nullptr, TRUE);
-        return 0;
+case ID_TAB_LOOP:
+    SetActiveMode(AppMode::Loop);
+    SetWindowTextW(hCut, L"Создать цикл");
+    Layout(hwnd);
+    InvalidateRect(hwnd, nullptr, TRUE);
+    return 0;
 
         case ID_LOOP_DURATION:
     SetLoopTargetMode(LoopTargetMode::Duration);
@@ -980,8 +1075,13 @@ case ID_LOOP_SIZE:
       return 0;
 
     case ID_CUT:
-      CutVideo(hwnd);
-      return 0;
+    if (GetActiveMode() == AppMode::Loop) {
+        LoopVideo(hwnd);
+    }
+    else {
+        CutVideo(hwnd);
+    }
+    return 0;
 
     case ID_START:
 case ID_END:

@@ -15,57 +15,60 @@ constexpr COLORREF MUTED_COLOR = Theme::TextMuted;
 constexpr COLORREF ACCENT_COLOR = Theme::Accent;
 
 // Control identifiers
-enum
-{
-    ID_INPUT = 101,
-    ID_BROWSE,
-    ID_START,
-    ID_END,
-    ID_OUTPUT,
-    ID_SAVE,
-    ID_CUT,
-    ID_PREVIEW_START,
-    ID_PREVIEW_END
+enum {
+  ID_INPUT = 101,
+  ID_BROWSE,
+  ID_START,
+  ID_END,
+  ID_OUTPUT,
+  ID_SAVE,
+  ID_CUT,
+  ID_PREVIEW_START,
+  ID_PREVIEW_END
 };
 
-struct LayoutMetrics
-{
-    int clientW = Theme::WindowWidth;
-    int clientH = Theme::WindowHeight;
+struct LayoutMetrics {
+  int clientW = Theme::WindowWidth;
+  int clientH = Theme::WindowHeight;
 
-    // Main panels
-    RECT leftPanel{};
-    RECT rightTopPanel{};
-    RECT rightBottomPanel{};
-    RECT bottomPanel{};
+  // Main panels
+  RECT leftPanel{};
+  RECT rightTopPanel{};
+  RECT rightBottomPanel{};
+  RECT bottomPanel{};
 
-    // Header
-    RECT accentBar{};
-    POINT titlePos{};
-    POINT subtitlePos{};
-    RECT logoRect{};
+  // Header
+  RECT accentBar{};
+  POINT titlePos{};
+  POINT subtitlePos{};
+  RECT logoRect{};
 
-    // Section headers
-    POINT srcLabelPos{};
-    POINT dstLabelPos{};
-    POINT startLabelPos{};
-    POINT endLabelPos{};
+  // Section headers
+  POINT srcLabelPos{};
+  POINT dstLabelPos{};
+  POINT startLabelPos{};
+  POINT endLabelPos{};
 
-    // Controls
-    RECT inputRect{};
-    RECT browseRect{};
-    RECT fileInfoRect{};
-    RECT outputRect{};
-    RECT saveRect{};
+  // Controls
+  RECT inputRect{};
+  RECT browseRect{};
+  RECT fileInfoRect{};
+  RECT outputRect{};
+  RECT saveRect{};
 
-    RECT previewStartRect{};
-    RECT startEditRect{};
-    RECT previewEndRect{};
-    RECT endEditRect{};
+  // Time range controls in left panel
+  RECT startEditRect{};
+  RECT endEditRect{};
+  RECT timelineRect{};
+  POINT durationPos{};
 
-    RECT progressRect{};
-    RECT cutBtnRect{};
-    RECT statusRect{};
+  // Preview panels on the right
+  RECT previewStartRect{};
+  RECT previewEndRect{};
+
+  RECT progressRect{};
+  RECT cutBtnRect{};
+  RECT statusRect{};
 };
 
 LayoutMetrics CalculateLayout(int clientW, int clientH);
@@ -92,19 +95,11 @@ extern HBRUSH hEditBrush;
 
 void SetFont(HWND hwnd, HFONT font);
 
-HWND CreateLabel(
-    HWND parent,
-    const wchar_t *text);
+HWND CreateLabel(HWND parent, const wchar_t *text);
 
-HWND CreateEdit(
-    HWND parent,
-    int id,
-    const wchar_t *value = L"");
+HWND CreateEdit(HWND parent, int id, const wchar_t *value = L"");
 
-HWND CreateButton(
-    HWND parent,
-    int id,
-    const wchar_t *text);
+HWND CreateButton(HWND parent, int id, const wchar_t *text);
 
 void Layout(HWND hwnd);
 

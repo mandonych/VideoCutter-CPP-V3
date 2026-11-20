@@ -883,6 +883,7 @@ case WM_CAPTURECHANGED:
         // Mode tabs
     hTabCut = CreateButton(hwnd, ID_TAB_CUT, L"Нарезка видео");
     hTabLoop = CreateButton(hwnd, ID_TAB_LOOP, L"Зацикливание");
+        hTabHelp = CreateButton(hwnd, ID_TAB_HELP, L"Помощь");
 
     // Loop settings
 hLoopDuration = CreateButton(hwnd, ID_LOOP_DURATION, L"По длительности");
@@ -988,6 +989,7 @@ SetFont(hLoopTarget, hTimeFont);
     dis->CtlID == ID_CUT ||
     dis->CtlID == ID_TAB_CUT ||
     dis->CtlID == ID_TAB_LOOP ||
+        dis->CtlID == ID_TAB_HELP ||
     dis->CtlID == ID_LOOP_DURATION ||
     dis->CtlID == ID_LOOP_SIZE) {
     DrawButton(dis);
@@ -1058,6 +1060,12 @@ SetFont(hLoopTarget, hTimeFont);
 case ID_TAB_LOOP:
     SetActiveMode(AppMode::Loop);
     SetWindowTextW(hCut, L"Создать цикл");
+    Layout(hwnd);
+    InvalidateRect(hwnd, nullptr, TRUE);
+    return 0;
+
+case ID_TAB_HELP:
+    SetActiveMode(AppMode::Help);
     Layout(hwnd);
     InvalidateRect(hwnd, nullptr, TRUE);
     return 0;
@@ -1151,8 +1159,10 @@ case ID_LOOP_TARGET:
                        Theme::Panel, Theme::Border);
     }
 
-    DrawRoundedPanel(graphics, m.bottomPanel, 18.0f,
-                     Theme::Panel, Theme::Border);
+        if (mode != AppMode::Help) {
+      DrawRoundedPanel(graphics, m.bottomPanel, 18.0f,
+                       Theme::Panel, Theme::Border);
+    }
 
     // Header accent bar
     SolidBrush accentBrush(ToGdiPlusColor(Theme::Accent));
@@ -1171,15 +1181,68 @@ case ID_LOOP_TARGET:
     SelectObject(memDC, hFont);
     SetTextColor(memDC, Theme::TextMuted);
 
-    if (mode == AppMode::Cut) {
+        if (mode == AppMode::Cut) {
       TextOutW(memDC, m.subtitlePos.x, m.subtitlePos.y,
                L"Быстрая обрезка без перекодирования", 35);
-    } else {
+    } else if (mode == AppMode::Loop) {
       TextOutW(memDC, m.subtitlePos.x, m.subtitlePos.y,
                L"Создание зацикленного видео", 28);
+    } else {
+      TextOutW(memDC, m.subtitlePos.x, m.subtitlePos.y,
+               L"Краткая инструкция", 19);
     }
 
     // Section headings
+
+        if (mode == AppMode::Help) {
+      SetBkMode(memDC, TRANSPARENT);
+
+      RECT textRect{};
+      const int left = m.leftPanel.left + 30;
+      const int right = m.leftPanel.right - 30;
+
+      SelectObject(memDC, hTitleFont);
+      SetTextColor(memDC, Theme::Accent);
+      TextOutW(memDC, left, 185, L"Обрезка видео", 13);
+
+      SelectObject(memDC, hFont);
+      SetTextColor(memDC, Theme::TextMuted);
+
+      textRect = {left, 225, right, 275};
+      DrawTextW(memDC,
+          L"Выберите видео, укажите начало и конец фрагмента, "
+          L"задайте имя выходного файла и нажмите «Обрезать видео». "
+          L"Обработка выполняется без перекодирования.",
+          -1, &textRect, DT_WORDBREAK);
+
+      SelectObject(memDC, hTitleFont);
+      SetTextColor(memDC, Theme::Accent);
+      TextOutW(memDC, left, 300, L"Зацикливание", 12);
+
+      SelectObject(memDC, hFont);
+      SetTextColor(memDC, Theme::TextMuted);
+
+      textRect = {left, 340, right, 390};
+      DrawTextW(memDC,
+          L"Выберите видео, задайте целевую длительность или размер "
+          L"файла и нажмите «Создать цикл». Программа рассчитает "
+          L"количество повторов. Перекодирование не выполняется.",
+          -1, &textRect, DT_WORDBREAK);
+
+      SelectObject(memDC, hTitleFont);
+      SetTextColor(memDC, Theme::Accent);
+      TextOutW(memDC, left, 415, L"Необходимые файлы", 17);
+
+      SelectObject(memDC, hFont);
+      SetTextColor(memDC, Theme::TextMuted);
+
+      textRect = {left, 455, right, 510};
+      DrawTextW(memDC,
+          L"Скачайте ffmpeg.exe и ffprobe.exe и поместите оба файла "
+          L"в папку bin рядом с VideoCutter.exe.",
+          -1, &textRect, DT_WORDBREAK);
+    } else {
+
     SetTextColor(memDC, Theme::Text);
     TextOutW(memDC, m.srcLabelPos.x, m.srcLabelPos.y, L"Исходный видеофайл",
              18);
@@ -1333,7 +1396,7 @@ DeleteObject(resultFont);
                  static_cast<int>(wcslen(durationText)));
     }
 }
-
+    }
     // Logo
     if (appLogo && appLogo->GetLastStatus() == Gdiplus::Ok) {
       graphics.DrawImage(appLogo, static_cast<INT>(m.logoRect.left),

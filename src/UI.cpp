@@ -11,6 +11,7 @@ HWND hPreviewStart, hPreviewEnd;
 HWND hFileInfo = nullptr;
 HWND hTabCut = nullptr;
 HWND hTabLoop = nullptr;
+HWND hTabHelp = nullptr;
 HWND hLoopDuration = nullptr;
 HWND hLoopSize = nullptr;
 HWND hLoopTarget = nullptr;
@@ -18,21 +19,13 @@ HWND hLoopTarget = nullptr;
 static AppMode activeMode = AppMode::Cut;
 static LoopTargetMode loopTargetMode = LoopTargetMode::Duration;
 
-void SetActiveMode(AppMode mode) {
-    activeMode = mode;
-}
+void SetActiveMode(AppMode mode) { activeMode = mode; }
 
-AppMode GetActiveMode() {
-    return activeMode;
-}
+AppMode GetActiveMode() { return activeMode; }
 
-void SetLoopTargetMode(LoopTargetMode mode) {
-    loopTargetMode = mode;
-}
+void SetLoopTargetMode(LoopTargetMode mode) { loopTargetMode = mode; }
 
-LoopTargetMode GetLoopTargetMode() {
-    return loopTargetMode;
-}
+LoopTargetMode GetLoopTargetMode() { return loopTargetMode; }
 
 HFONT hFont = nullptr;
 HFONT hTimeFont = nullptr;
@@ -58,18 +51,19 @@ LayoutMetrics CalculateLayout(int clientW, int clientH, AppMode mode) {
   m.subtitlePos = {60, 76};
   m.logoRect = {m.clientW - 140, 8, m.clientW - 35, 113};
 
-    // Mode tabs
+  // Mode tabs
   m.tabCutRect = {margin, 116, margin + 190, 148};
   m.tabLoopRect = {margin + 200, 116, margin + 390, 148};
+  m.tabHelpRect = {margin + 400, 116, margin + 590, 148};
 
   // Main panels
-    int middleTop = 158;
+  int middleTop = 158;
   int bottomPanelTop = m.clientH - footerH - bottomPanelH;
   int middleBottom = bottomPanelTop - 18;
   int middleH = middleBottom - middleTop;
 
   // 68% left panel, 32% right panel
-    int usableW = m.clientW - margin * 2;
+  int usableW = m.clientW - margin * 2;
   int leftW = usableW;
   int rightW = 0;
 
@@ -88,14 +82,11 @@ LayoutMetrics CalculateLayout(int clientW, int clientH, AppMode mode) {
     int previewGap = 12;
     int previewH = (middleH - previewGap) / 2;
 
-    m.rightTopPanel = {
-        rightX, middleTop, rightX + rightW, middleTop + previewH
-    };
+    m.rightTopPanel = {rightX, middleTop, rightX + rightW,
+                       middleTop + previewH};
 
-    m.rightBottomPanel = {
-        rightX, middleTop + previewH + previewGap,
-        rightX + rightW, middleBottom
-    };
+    m.rightBottomPanel = {rightX, middleTop + previewH + previewGap,
+                          rightX + rightW, middleBottom};
   } else {
     m.rightTopPanel = {};
     m.rightBottomPanel = {};
@@ -104,27 +95,12 @@ LayoutMetrics CalculateLayout(int clientW, int clientH, AppMode mode) {
     int loopX = m.leftPanel.left + 20;
     int loopY = middleTop + 130;
 
-    m.loopDurationRect = {
-        loopX,
-        loopY,
-        loopX + 180,
-        loopY + 34
-    };
+    m.loopDurationRect = {loopX, loopY, loopX + 180, loopY + 34};
 
-    m.loopSizeRect = {
-        loopX + 192,
-        loopY,
-        loopX + 372,
-        loopY + 34
-    };
+    m.loopSizeRect = {loopX + 192, loopY, loopX + 372, loopY + 34};
 
-    m.loopTargetRect = {
-        loopX,
-        loopY + 80,
-        loopX + 260,
-        loopY + 114
-    };
-}
+    m.loopTargetRect = {loopX, loopY + 80, loopX + 260, loopY + 114};
+  }
   // Left panel contents
   int innerPad = 18;
   int btnW = 120;
@@ -168,9 +144,9 @@ LayoutMetrics CalculateLayout(int clientW, int clientH, AppMode mode) {
   // Output file
   int dstBlockY = middleBottom - 80;
 
-if (mode == AppMode::Loop) {
+  if (mode == AppMode::Loop) {
     dstBlockY += 12;
-}
+  }
 
   m.dstLabelPos = {leftX + innerPad + 4, dstBlockY};
 
@@ -181,23 +157,17 @@ if (mode == AppMode::Loop) {
                 leftX + leftW - innerPad, dstBlockY + 63};
 
   // Right previews occupy the entire panels
-    // Right previews are used only in Cut mode
+  // Right previews are used only in Cut mode
   if (mode == AppMode::Cut) {
     constexpr int previewPad = 10;
 
-    m.previewStartRect = {
-        rightX + previewPad,
-        m.rightTopPanel.top + previewPad,
-        rightX + rightW - previewPad,
-        m.rightTopPanel.bottom - previewPad
-    };
+    m.previewStartRect = {rightX + previewPad, m.rightTopPanel.top + previewPad,
+                          rightX + rightW - previewPad,
+                          m.rightTopPanel.bottom - previewPad};
 
     m.previewEndRect = {
-        rightX + previewPad,
-        m.rightBottomPanel.top + previewPad,
-        rightX + rightW - previewPad,
-        m.rightBottomPanel.bottom - previewPad
-    };
+        rightX + previewPad, m.rightBottomPanel.top + previewPad,
+        rightX + rightW - previewPad, m.rightBottomPanel.bottom - previewPad};
   } else {
     m.previewStartRect = {};
     m.previewEndRect = {};
@@ -379,19 +349,14 @@ HWND CreateButton(HWND parent, int id, const wchar_t *text) {
   return h;
 }
 
-void Layout(HWND hwnd) {
-    Layout(hwnd, activeMode);
-}
+void Layout(HWND hwnd) { Layout(hwnd, activeMode); }
 
 void Layout(HWND hwnd, AppMode mode) {
   RECT rc{};
   GetClientRect(hwnd, &rc);
 
-    LayoutMetrics m = CalculateLayout(
-      rc.right - rc.left,
-      rc.bottom - rc.top,
-      mode
-  );
+  LayoutMetrics m =
+      CalculateLayout(rc.right - rc.left, rc.bottom - rc.top, mode);
 
   auto place = [](HWND ctrl, const RECT &r) {
     if (!ctrl)
@@ -400,11 +365,12 @@ void Layout(HWND hwnd, AppMode mode) {
                  r.bottom - r.top, SWP_NOZORDER | SWP_NOACTIVATE);
   };
 
-    place(hTabCut, m.tabCutRect);
+  place(hTabCut, m.tabCutRect);
   place(hTabLoop, m.tabLoopRect);
+  place(hTabHelp, m.tabHelpRect);
   place(hLoopDuration, m.loopDurationRect);
-place(hLoopSize, m.loopSizeRect);
-place(hLoopTarget, m.loopTargetRect);
+  place(hLoopSize, m.loopSizeRect);
+  place(hLoopTarget, m.loopTargetRect);
 
   place(hInput, m.inputRect);
   place(hBrowse, m.browseRect);
@@ -412,27 +378,50 @@ place(hLoopTarget, m.loopTargetRect);
   place(hOutput, m.outputRect);
   place(hSave, m.saveRect);
 
-    if (mode == AppMode::Cut) {
-    ShowWindow(hPreviewStart, SW_SHOW);
-    ShowWindow(hPreviewEnd, SW_SHOW);
-
-    ShowWindow(hStart, SW_SHOW);
-    ShowWindow(hEnd, SW_SHOW);
-
+    if (mode == AppMode::Help) {
+    ShowWindow(hInput, SW_HIDE);
+    ShowWindow(hBrowse, SW_HIDE);
+    ShowWindow(hFileInfo, SW_HIDE);
+    ShowWindow(hOutput, SW_HIDE);
+    ShowWindow(hSave, SW_HIDE);
+    ShowWindow(hStart, SW_HIDE);
+    ShowWindow(hEnd, SW_HIDE);
+    ShowWindow(hPreviewStart, SW_HIDE);
+    ShowWindow(hPreviewEnd, SW_HIDE);
     ShowWindow(hLoopDuration, SW_HIDE);
     ShowWindow(hLoopSize, SW_HIDE);
     ShowWindow(hLoopTarget, SW_HIDE);
-} else {
-    ShowWindow(hPreviewStart, SW_HIDE);
-    ShowWindow(hPreviewEnd, SW_HIDE);
+    ShowWindow(hCut, SW_HIDE);
+    ShowWindow(hProgress, SW_HIDE);
+    ShowWindow(hStatus, SW_HIDE);
+  } else {
+    ShowWindow(hInput, SW_SHOW);
+    ShowWindow(hBrowse, SW_SHOW);
+    ShowWindow(hFileInfo, SW_SHOW);
+    ShowWindow(hOutput, SW_SHOW);
+    ShowWindow(hSave, SW_SHOW);
+    ShowWindow(hCut, SW_SHOW);
+    ShowWindow(hProgress, SW_SHOW);
+    ShowWindow(hStatus, SW_SHOW);
 
-    ShowWindow(hStart, SW_HIDE);
-    ShowWindow(hEnd, SW_HIDE);
-
-    ShowWindow(hLoopDuration, SW_SHOW);
-    ShowWindow(hLoopSize, SW_SHOW);
-    ShowWindow(hLoopTarget, SW_SHOW);
-}
+    if (mode == AppMode::Cut) {
+      ShowWindow(hPreviewStart, SW_SHOW);
+      ShowWindow(hPreviewEnd, SW_SHOW);
+      ShowWindow(hStart, SW_SHOW);
+      ShowWindow(hEnd, SW_SHOW);
+      ShowWindow(hLoopDuration, SW_HIDE);
+      ShowWindow(hLoopSize, SW_HIDE);
+      ShowWindow(hLoopTarget, SW_HIDE);
+    } else {
+      ShowWindow(hPreviewStart, SW_HIDE);
+      ShowWindow(hPreviewEnd, SW_HIDE);
+      ShowWindow(hStart, SW_HIDE);
+      ShowWindow(hEnd, SW_HIDE);
+      ShowWindow(hLoopDuration, SW_SHOW);
+      ShowWindow(hLoopSize, SW_SHOW);
+      ShowWindow(hLoopTarget, SW_SHOW);
+    }
+  }
 
   place(hPreviewStart, m.previewStartRect);
   place(hPreviewEnd, m.previewEndRect);
@@ -450,69 +439,62 @@ place(hLoopTarget, m.loopTargetRect);
   CenterEditTextVertical(hEnd);
 }
 
-
 void DrawButton(const DRAWITEMSTRUCT *dis) {
-    bool primary = dis->CtlID == ID_CUT;
+  bool primary = dis->CtlID == ID_CUT;
 
-    bool isTab =
+      bool isTab =
         dis->CtlID == ID_TAB_CUT ||
-        dis->CtlID == ID_TAB_LOOP;
+        dis->CtlID == ID_TAB_LOOP ||
+        dis->CtlID == ID_TAB_HELP;
 
-    bool isActiveTab =
+      bool isActiveTab =
         (dis->CtlID == ID_TAB_CUT && activeMode == AppMode::Cut) ||
-        (dis->CtlID == ID_TAB_LOOP && activeMode == AppMode::Loop);
+        (dis->CtlID == ID_TAB_LOOP && activeMode == AppMode::Loop) ||
+        (dis->CtlID == ID_TAB_HELP && activeMode == AppMode::Help);
 
-    // Loop calculation mode buttons
-    bool isLoopOption =
-        dis->CtlID == ID_LOOP_DURATION ||
-        dis->CtlID == ID_LOOP_SIZE;
+  // Loop calculation mode buttons
+  bool isLoopOption =
+      dis->CtlID == ID_LOOP_DURATION || dis->CtlID == ID_LOOP_SIZE;
 
-    // По умолчанию активен режим расчёта по длительности
-    bool isActiveLoopOption =
-    (dis->CtlID == ID_LOOP_DURATION &&
-     loopTargetMode == LoopTargetMode::Duration) ||
-    (dis->CtlID == ID_LOOP_SIZE &&
-     loopTargetMode == LoopTargetMode::Size);
+  // По умолчанию активен режим расчёта по длительности
+  bool isActiveLoopOption =
+      (dis->CtlID == ID_LOOP_DURATION &&
+       loopTargetMode == LoopTargetMode::Duration) ||
+      (dis->CtlID == ID_LOOP_SIZE && loopTargetMode == LoopTargetMode::Size);
 
-    bool highlighted =
-        primary ||
-        (isTab && isActiveTab) ||
-        (isLoopOption && isActiveLoopOption);
+  bool highlighted =
+      primary || (isTab && isActiveTab) || (isLoopOption && isActiveLoopOption);
 
-    COLORREF background =
-        highlighted ? Theme::Accent : Theme::PanelSecondary;
+  COLORREF background = highlighted ? Theme::Accent : Theme::PanelSecondary;
 
-    COLORREF textColor =
-        highlighted ? Theme::Background : Theme::Text;
+  COLORREF textColor = highlighted ? Theme::Background : Theme::Text;
 
-    if (dis->itemState & ODS_DISABLED) {
-        background = Theme::PanelSecondary;
-        textColor = Theme::TextMuted;
-    } else if (dis->itemState & ODS_SELECTED) {
-        background = primary ? Theme::ButtonPressed : RGB(73, 73, 105);
-    } else {
-        POINT cursor{};
-        GetCursorPos(&cursor);
-        ScreenToClient(dis->hwndItem, &cursor);
+  if (dis->itemState & ODS_DISABLED) {
+    background = Theme::PanelSecondary;
+    textColor = Theme::TextMuted;
+  } else if (dis->itemState & ODS_SELECTED) {
+    background = primary ? Theme::ButtonPressed : RGB(73, 73, 105);
+  } else {
+    POINT cursor{};
+    GetCursorPos(&cursor);
+    ScreenToClient(dis->hwndItem, &cursor);
 
-        if (PtInRect(&dis->rcItem, cursor)) {
-            background = primary ? Theme::ButtonHover : Theme::Border;
-        }
+    if (PtInRect(&dis->rcItem, cursor)) {
+      background = primary ? Theme::ButtonHover : Theme::Border;
     }
+  }
 
-    HBRUSH brush = CreateSolidBrush(background);
-    FillRect(dis->hDC, &dis->rcItem, brush);
-    DeleteObject(brush);
+  HBRUSH brush = CreateSolidBrush(background);
+  FillRect(dis->hDC, &dis->rcItem, brush);
+  DeleteObject(brush);
 
-    SetBkMode(dis->hDC, TRANSPARENT);
-    SetTextColor(dis->hDC, textColor);
+  SetBkMode(dis->hDC, TRANSPARENT);
+  SetTextColor(dis->hDC, textColor);
 
-    wchar_t text[128]{};
-    GetWindowTextW(dis->hwndItem, text, 128);
+  wchar_t text[128]{};
+  GetWindowTextW(dis->hwndItem, text, 128);
 
-    RECT rect = dis->rcItem;
+  RECT rect = dis->rcItem;
 
-    DrawTextW(dis->hDC, text, -1, &rect,
-              DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+  DrawTextW(dis->hDC, text, -1, &rect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 }
-

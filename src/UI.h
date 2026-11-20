@@ -25,8 +25,9 @@ enum {
     ID_CUT,
     ID_PREVIEW_START,
     ID_PREVIEW_END,
-    ID_TAB_CUT,
+        ID_TAB_CUT,
     ID_TAB_LOOP,
+    ID_TAB_HELP,
     ID_LOOP_DURATION,
     ID_LOOP_SIZE,
     ID_LOOP_TARGET
@@ -34,7 +35,8 @@ enum {
 
 enum class AppMode {
     Cut,
-    Loop
+    Loop,
+    Help
 };
 
 struct LayoutMetrics {
@@ -56,6 +58,7 @@ struct LayoutMetrics {
     // Mode tabs
   RECT tabCutRect{};
   RECT tabLoopRect{};
+    RECT tabHelpRect{};
   RECT loopDurationRect{};
 RECT loopSizeRect{};
 RECT loopTargetRect{};
@@ -110,6 +113,7 @@ extern HWND hPreviewEnd;
 extern HWND hFileInfo;
 extern HWND hTabCut;
 extern HWND hTabLoop;
+extern HWND hTabHelp;
 extern HWND hLoopDuration;
 extern HWND hLoopSize;
 extern HWND hLoopTarget;

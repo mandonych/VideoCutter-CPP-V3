@@ -16,15 +16,25 @@ constexpr COLORREF ACCENT_COLOR = Theme::Accent;
 
 // Control identifiers
 enum {
-  ID_INPUT = 101,
-  ID_BROWSE,
-  ID_START,
-  ID_END,
-  ID_OUTPUT,
-  ID_SAVE,
-  ID_CUT,
-  ID_PREVIEW_START,
-  ID_PREVIEW_END
+    ID_INPUT = 101,
+    ID_BROWSE,
+    ID_START,
+    ID_END,
+    ID_OUTPUT,
+    ID_SAVE,
+    ID_CUT,
+    ID_PREVIEW_START,
+    ID_PREVIEW_END,
+    ID_TAB_CUT,
+    ID_TAB_LOOP,
+    ID_LOOP_DURATION,
+    ID_LOOP_SIZE,
+    ID_LOOP_TARGET
+};
+
+enum class AppMode {
+    Cut,
+    Loop
 };
 
 struct LayoutMetrics {
@@ -42,6 +52,13 @@ struct LayoutMetrics {
   POINT titlePos{};
   POINT subtitlePos{};
   RECT logoRect{};
+
+    // Mode tabs
+  RECT tabCutRect{};
+  RECT tabLoopRect{};
+  RECT loopDurationRect{};
+RECT loopSizeRect{};
+RECT loopTargetRect{};
 
   // Section headers
   POINT srcLabelPos{};
@@ -71,7 +88,11 @@ struct LayoutMetrics {
   RECT statusRect{};
 };
 
-LayoutMetrics CalculateLayout(int clientW, int clientH);
+LayoutMetrics CalculateLayout(
+    int clientW,
+    int clientH,
+    AppMode mode = AppMode::Cut
+);
 
 extern HFONT hFont;
 extern HFONT hTimeFont;
@@ -87,6 +108,11 @@ extern HWND hProgress;
 extern HWND hPreviewStart;
 extern HWND hPreviewEnd;
 extern HWND hFileInfo;
+extern HWND hTabCut;
+extern HWND hTabLoop;
+extern HWND hLoopDuration;
+extern HWND hLoopSize;
+extern HWND hLoopTarget;
 extern HFONT hTitleFont;
 
 extern HBRUSH hBgBrush;
@@ -102,5 +128,17 @@ HWND CreateEdit(HWND parent, int id, const wchar_t *value = L"");
 HWND CreateButton(HWND parent, int id, const wchar_t *text);
 
 void Layout(HWND hwnd);
+void Layout(HWND hwnd, AppMode mode);
+
+void SetActiveMode(AppMode mode);
+AppMode GetActiveMode();
+
+enum class LoopTargetMode {
+    Duration,
+    Size
+};
+
+void SetLoopTargetMode(LoopTargetMode mode);
+LoopTargetMode GetLoopTargetMode();
 
 void DrawButton(const DRAWITEMSTRUCT *dis);

@@ -422,9 +422,10 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wParam,
     RECT clientRect{};
     GetClientRect(hwnd, &clientRect);
 
-    LayoutMetrics m = CalculateLayout(
+        LayoutMetrics m = CalculateLayout(
         clientRect.right,
-        clientRect.bottom);
+        clientRect.bottom,
+        GetActiveMode());
 
     RECT hitRect = m.timelineRect;
     hitRect.top -= 15;
@@ -466,9 +467,10 @@ case WM_MOUSEMOVE:
     RECT clientRect{};
     GetClientRect(hwnd, &clientRect);
 
-    LayoutMetrics m = CalculateLayout(
+        LayoutMetrics m = CalculateLayout(
         clientRect.right,
-        clientRect.bottom);
+        clientRect.bottom,
+        GetActiveMode());
 
     double time = TimelineXToTime(
         GET_X_LPARAM(lParam),
@@ -681,6 +683,15 @@ case WM_CAPTURECHANGED:
     hFont = Theme::CreateUIFont(17, FW_NORMAL);
     hTimeFont = Theme::CreateUIFont(29, FW_NORMAL);
     hTitleFont = Theme::CreateUIFont(38, FW_BOLD);
+        // Mode tabs
+    hTabCut = CreateButton(hwnd, ID_TAB_CUT, L"Нарезка видео");
+    hTabLoop = CreateButton(hwnd, ID_TAB_LOOP, L"Зацикливание");
+
+    // Loop settings
+hLoopDuration = CreateButton(hwnd, ID_LOOP_DURATION, L"По длительности");
+hLoopSize = CreateButton(hwnd, ID_LOOP_SIZE, L"По размеру");
+hLoopTarget = CreateEdit(hwnd, ID_LOOP_TARGET, L"00:10:00");
+SetFont(hLoopTarget, hTimeFont);
 
     // Source file
     hInput = CreateEdit(hwnd, ID_INPUT);
@@ -775,11 +786,16 @@ case WM_CAPTURECHANGED:
   case WM_DRAWITEM: {
     auto dis = reinterpret_cast<DRAWITEMSTRUCT *>(lParam);
 
-    if (dis->CtlID == ID_BROWSE || dis->CtlID == ID_SAVE ||
-        dis->CtlID == ID_CUT) {
-      DrawButton(dis);
-      return TRUE;
-    }
+        if (dis->CtlID == ID_BROWSE ||
+    dis->CtlID == ID_SAVE ||
+    dis->CtlID == ID_CUT ||
+    dis->CtlID == ID_TAB_CUT ||
+    dis->CtlID == ID_TAB_LOOP ||
+    dis->CtlID == ID_LOOP_DURATION ||
+    dis->CtlID == ID_LOOP_SIZE) {
+    DrawButton(dis);
+    return TRUE;
+}
 
     if (dis->CtlID == ID_PREVIEW_START || dis->CtlID == ID_PREVIEW_END) {
       FillRect(dis->hDC, &dis->rcItem, hPanelBrush);
@@ -834,6 +850,31 @@ case WM_CAPTURECHANGED:
 
   case WM_COMMAND:
     switch (LOWORD(wParam)) {
+
+            case ID_TAB_CUT:
+        SetActiveMode(AppMode::Cut);
+        Layout(hwnd);
+        InvalidateRect(hwnd, nullptr, TRUE);
+        return 0;
+
+    case ID_TAB_LOOP:
+        SetActiveMode(AppMode::Loop);
+        Layout(hwnd);
+        InvalidateRect(hwnd, nullptr, TRUE);
+        return 0;
+
+        case ID_LOOP_DURATION:
+    SetLoopTargetMode(LoopTargetMode::Duration);
+    SetWindowTextW(hLoopTarget, L"00:10:00");
+    InvalidateRect(hwnd, nullptr, TRUE);
+    return 0;
+
+case ID_LOOP_SIZE:
+    SetLoopTargetMode(LoopTargetMode::Size);
+    SetWindowTextW(hLoopTarget, L"1000");
+    InvalidateRect(hwnd, nullptr, TRUE);
+    return 0;
+
     case ID_BROWSE:
       ChooseInput(hwnd);
       return 0;
@@ -877,7 +918,8 @@ case WM_CAPTURECHANGED:
     HBITMAP memBmp = CreateCompatibleBitmap(dc, cw, ch);
     HGDIOBJ oldBmp = SelectObject(memDC, memBmp);
 
-    LayoutMetrics m = CalculateLayout(cw, ch);
+        AppMode mode = GetActiveMode();
+    LayoutMetrics m = CalculateLayout(cw, ch, mode);
 
     Graphics graphics(memDC);
     graphics.SetSmoothingMode(SmoothingModeAntiAlias);
@@ -885,13 +927,19 @@ case WM_CAPTURECHANGED:
     graphics.Clear(ToGdiPlusColor(Theme::Background));
 
     // Panels
-    DrawRoundedPanel(graphics, m.leftPanel, 18.0f, Theme::Panel, Theme::Border);
-    DrawRoundedPanel(graphics, m.rightTopPanel, 18.0f, Theme::Panel,
-                     Theme::Border);
-    DrawRoundedPanel(graphics, m.rightBottomPanel, 18.0f, Theme::Panel,
-                     Theme::Border);
-    DrawRoundedPanel(graphics, m.bottomPanel, 18.0f, Theme::Panel,
-                     Theme::Border);
+    DrawRoundedPanel(graphics, m.leftPanel, 18.0f,
+                     Theme::Panel, Theme::Border);
+
+    if (mode == AppMode::Cut) {
+      DrawRoundedPanel(graphics, m.rightTopPanel, 18.0f,
+                       Theme::Panel, Theme::Border);
+
+      DrawRoundedPanel(graphics, m.rightBottomPanel, 18.0f,
+                       Theme::Panel, Theme::Border);
+    }
+
+    DrawRoundedPanel(graphics, m.bottomPanel, 18.0f,
+                     Theme::Panel, Theme::Border);
 
     // Header accent bar
     SolidBrush accentBrush(ToGdiPlusColor(Theme::Accent));
@@ -905,19 +953,49 @@ case WM_CAPTURECHANGED:
     HGDIOBJ oldFont = SelectObject(memDC, hTitleFont);
     SetBkMode(memDC, TRANSPARENT);
     SetTextColor(memDC, Theme::Text);
-    TextOutW(memDC, m.titlePos.x, m.titlePos.y, L"Video Cutter", 12);
+        TextOutW(memDC, m.titlePos.x, m.titlePos.y, L"Video Cutter", 12);
 
     SelectObject(memDC, hFont);
     SetTextColor(memDC, Theme::TextMuted);
-    TextOutW(memDC, m.subtitlePos.x, m.subtitlePos.y,
-             L"Быстрая обрезка без перекодирования", 35);
+
+    if (mode == AppMode::Cut) {
+      TextOutW(memDC, m.subtitlePos.x, m.subtitlePos.y,
+               L"Быстрая обрезка без перекодирования", 35);
+    } else {
+      TextOutW(memDC, m.subtitlePos.x, m.subtitlePos.y,
+               L"Создание зацикленного видео", 28);
+    }
 
     // Section headings
     SetTextColor(memDC, Theme::Text);
     TextOutW(memDC, m.srcLabelPos.x, m.srcLabelPos.y, L"Исходный видеофайл",
              18);
     TextOutW(memDC, m.dstLabelPos.x, m.dstLabelPos.y, L"Выходной файл", 14);
+    if (mode == AppMode::Loop) {
+    SetTextColor(memDC, Theme::Text);
+    TextOutW(memDC, m.leftPanel.left + 20, m.loopDurationRect.top - 32,
+             L"Параметры зацикливания", 23);
 
+    SetTextColor(memDC, Theme::TextMuted);
+    TextOutW(memDC, m.loopTargetRect.left, m.loopTargetRect.top - 20,
+             L"Целевое значение", 17);
+
+    // Estimated result
+    int resultX = m.loopTargetRect.right + 24;
+    int resultY = m.loopTargetRect.top - 20;
+
+    SetTextColor(memDC, Theme::Text);
+    TextOutW(memDC, resultX, resultY,
+             L"Расчётный результат", 19);
+
+    SetTextColor(memDC, Theme::TextMuted);
+    TextOutW(memDC, resultX, resultY + 28,
+             L"Длительность: —", 16);
+    TextOutW(memDC, resultX, resultY + 50,
+             L"Размер файла: —", 16);
+}
+
+    if (mode == AppMode::Cut) {
     TextOutW(memDC, m.startLabelPos.x, m.startLabelPos.y, L"Начало", 6);
     TextOutW(memDC, m.endLabelPos.x, m.endLabelPos.y, L"Конец", 5);
 
@@ -977,9 +1055,10 @@ case WM_CAPTURECHANGED:
                  totalSeconds % 60);
 
       SetTextColor(memDC, Theme::TextMuted);
-      TextOutW(memDC, m.durationPos.x, m.durationPos.y, durationText,
-               static_cast<int>(wcslen(durationText)));
+              TextOutW(memDC, m.durationPos.x, m.durationPos.y, durationText,
+                 static_cast<int>(wcslen(durationText)));
     }
+}
 
     // Logo
     if (appLogo && appLogo->GetLastStatus() == Gdiplus::Ok) {

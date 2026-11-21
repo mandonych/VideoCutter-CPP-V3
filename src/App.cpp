@@ -1327,6 +1327,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wParam,
     break;
   }
 
+
 case WM_NOTIFY: {
   auto *header = reinterpret_cast<NMHDR *>(lParam);
 
@@ -1346,67 +1347,31 @@ case WM_NOTIFY: {
 
         SendMessageW(hHelpText, EM_GETTEXTRANGE, 0,
                      reinterpret_cast<LPARAM>(&range));
-                     clickedText.resize(length);
-                     std::wstring debugText = L"Длина текста: " +
-    std::to_wstring(clickedText.length()) +
-    L"\nПервый символ: " +
-    std::to_wstring(static_cast<int>(clickedText[0]));
 
-MessageBoxW(hwnd, debugText.c_str(), L"Проверка текста", MB_OK);
-                     MessageBoxW(
-    hwnd,
-    clickedText.c_str(),
-    L"Текст нажатой ссылки",
-    MB_OK
-);
-MessageBoxW(
-    hwnd,
-    std::to_wstring(helpLinks.size()).c_str(),
-    L"Количество ссылок",
-    MB_OK
-);
-std::wstring debugLinks = L"Нажатый текст:\n" + clickedText +
-                          L"\n\nСохранённые подписи:\n";
+        clickedText.resize(length);
 
-for (const auto &item : helpLinks) {
-    debugLinks += L"[" + item.label + L"]\n";
-}
-
-MessageBoxW(hwnd, debugLinks.c_str(), L"Сравнение ссылок", MB_OK);        
-for (const auto &item : helpLinks) {
+        for (const auto &item : helpLinks) {
           if (item.url == clickedText) {
-            MessageBoxW(
-    hwnd,
-    item.url.c_str(),
-    L"Найден URL ссылки",
-    MB_OK
-);
-            SHELLEXECUTEINFOW sei{};
-sei.cbSize = sizeof(sei);
-sei.fMask = SEE_MASK_FLAG_NO_UI;
-sei.lpVerb = L"open";
-sei.lpFile = item.url.c_str();
-sei.nShow = SW_SHOWNORMAL;
+            if (item.url.rfind(L"https://", 0) == 0 ||
+                item.url.rfind(L"http://", 0) == 0) {
+              SHELLEXECUTEINFOW sei{};
+              sei.cbSize = sizeof(sei);
+              sei.fMask = SEE_MASK_FLAG_NO_UI;
+              sei.lpVerb = L"open";
+              sei.lpFile = item.url.c_str();
+              sei.nShow = SW_SHOWNORMAL;
 
-BOOL success = ShellExecuteExW(&sei);
+              if (!ShellExecuteExW(&sei)) {
+                DWORD error = GetLastError();
 
-if (!success) {
-    DWORD error = GetLastError();
-
-    MessageBoxW(
-        hwnd,
-        std::to_wstring(error).c_str(),
-        L"Ошибка ShellExecuteExW",
-        MB_OK
-    );
-} else {
-    MessageBoxW(
-        hwnd,
-        L"Запрос на открытие передан Windows",
-        L"Результат",
-        MB_OK
-    );
-}
+                MessageBoxW(
+                    hwnd,
+                    std::to_wstring(error).c_str(),
+                    L"Ошибка открытия ссылки",
+                    MB_OK | MB_ICONERROR
+                );
+              }
+            }
 
             break;
           }
@@ -1419,6 +1384,7 @@ if (!success) {
 
   break;
 }
+
 
   case WM_COMMAND:
     switch (LOWORD(wParam)) {

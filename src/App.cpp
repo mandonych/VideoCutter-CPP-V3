@@ -939,8 +939,7 @@ std::string ConvertMarkdownToRtf(const std::wstring &markdown) {
 static int helpScrollAccumulator = 0;
 
 LRESULT CALLBACK HelpTextSubclassProc(HWND hwnd, UINT message, WPARAM wParam,
-                                      LPARAM lParam, UINT_PTR subclassId,
-                                      DWORD_PTR refData) {
+                                      LPARAM lParam, UINT_PTR, DWORD_PTR) {
   if (message == WM_MOUSEWHEEL) {
     int delta = GET_WHEEL_DELTA_WPARAM(wParam);
 

@@ -44,7 +44,6 @@ LayoutMetrics CalculateLayout(int clientW, int clientH, AppMode mode) {
 
   constexpr int margin = 20;
   constexpr int gap = 12;
-  constexpr int headerH = 110;
   constexpr int footerH = 30;
   constexpr int bottomPanelH = 70;
 

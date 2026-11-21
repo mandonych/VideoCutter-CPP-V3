@@ -60,8 +60,12 @@ LayoutMetrics CalculateLayout(int clientW, int clientH, AppMode mode) {
   // Main panels
   int middleTop = 158;
   int bottomPanelTop = m.clientH - footerH - bottomPanelH;
-  int middleBottom = bottomPanelTop - 18;
-  int middleH = middleBottom - middleTop;
+
+int middleBottom = (mode == AppMode::Help)
+    ? m.clientH - margin
+    : bottomPanelTop - 18;
+
+int middleH = middleBottom - middleTop;
 
   // 68% left panel, 32% right panel
   int usableW = m.clientW - margin * 2;

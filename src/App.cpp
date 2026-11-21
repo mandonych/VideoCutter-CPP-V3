@@ -26,6 +26,7 @@
 #include <sstream>
 #include <string>
 #include <thread>
+#include <vector>
 
 // Project headers
 #include "App.h"
@@ -675,6 +676,13 @@ std::string RtfEscape(const std::wstring &text) {
   return result;
 }
 
+struct HelpLink {
+  std::wstring label;
+  std::wstring url;
+};
+
+std::vector<HelpLink> helpLinks;
+
 void AppendInlineMarkdown(std::string &rtf, const std::wstring &text) {
   size_t i = 0;
 
@@ -723,9 +731,16 @@ void AppendInlineMarkdown(std::string &rtf, const std::wstring &text) {
         size_t end = text.find(L')', close + 2);
 
         if (end != std::wstring::npos) {
-          rtf += "\\ul\\cf2 ";
-          rtf += RtfEscape(text.substr(i + 1, close - i - 1));
-          rtf += "\\ul0\\cf1 ";
+          std::wstring label = text.substr(i + 1, close - i - 1);
+          std::wstring url = text.substr(close + 2, end - close - 2);
+          helpLinks.push_back({label, url});
+
+          rtf += "{\\field{\\*\\fldinst HYPERLINK \"";
+          rtf += RtfEscape(url);
+          rtf += "\"}{\\fldrslt{\\ul\\cf2 ";
+          rtf += RtfEscape(label);
+          rtf += "}}}";
+
           i = end + 1;
           continue;
         }
@@ -738,6 +753,7 @@ void AppendInlineMarkdown(std::string &rtf, const std::wstring &text) {
 }
 
 std::string ConvertMarkdownToRtf(const std::wstring &markdown) {
+  helpLinks.clear();
   std::string rtf = "{\\rtf1\\ansi\\deff0\\uc1"
                     "{\\fonttbl"
                     "{\\f0\\fnil\\fcharset204 Segoe UI;}"
@@ -869,8 +885,7 @@ static int helpScrollAccumulator = 0;
 LRESULT CALLBACK HelpTextSubclassProc(HWND hwnd, UINT message, WPARAM wParam,
                                       LPARAM lParam, UINT_PTR subclassId,
                                       DWORD_PTR refData) {
-  if (message == WM_MOUSEWHEEL)
-{
+  if (message == WM_MOUSEWHEEL) {
     int delta = GET_WHEEL_DELTA_WPARAM(wParam);
 
     helpScrollAccumulator -= delta;
@@ -878,18 +893,12 @@ LRESULT CALLBACK HelpTextSubclassProc(HWND hwnd, UINT message, WPARAM wParam,
     int lines = helpScrollAccumulator / WHEEL_DELTA;
     helpScrollAccumulator %= WHEEL_DELTA;
 
-    if (lines != 0)
-    {
-        SendMessageW(
-            hwnd,
-            EM_LINESCROLL,
-            0,
-            lines * 3
-        );
+    if (lines != 0) {
+      SendMessageW(hwnd, EM_LINESCROLL, 0, lines * 3);
     }
 
     return 0;
-}
+  }
 
   return DefSubclassProc(hwnd, message, wParam, lParam);
 }
@@ -1143,6 +1152,8 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wParam,
 
     SetWindowSubclass(hHelpText, HelpTextSubclassProc, 1, 0);
 
+    SendMessageW(hHelpText, EM_SETEVENTMASK, 0, ENM_LINK);
+
     SendMessageW(hHelpText, EM_SETBKGNDCOLOR, 0, Theme::Panel);
 
     SendMessageW(hHelpText, WM_SETFONT, reinterpret_cast<WPARAM>(hFont), TRUE);
@@ -1315,6 +1326,99 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wParam,
     }
     break;
   }
+
+case WM_NOTIFY: {
+  auto *header = reinterpret_cast<NMHDR *>(lParam);
+
+  if (header && header->hwndFrom == hHelpText &&
+      header->code == EN_LINK) {
+    auto *link = reinterpret_cast<ENLINK *>(lParam);
+
+    if (link->msg == WM_LBUTTONUP) {
+      int length = link->chrg.cpMax - link->chrg.cpMin;
+
+      if (length > 0) {
+        std::wstring clickedText(length + 1, L'\0');
+
+        TEXTRANGEW range{};
+        range.chrg = link->chrg;
+        range.lpstrText = clickedText.data();
+
+        SendMessageW(hHelpText, EM_GETTEXTRANGE, 0,
+                     reinterpret_cast<LPARAM>(&range));
+                     clickedText.resize(length);
+                     std::wstring debugText = L"Длина текста: " +
+    std::to_wstring(clickedText.length()) +
+    L"\nПервый символ: " +
+    std::to_wstring(static_cast<int>(clickedText[0]));
+
+MessageBoxW(hwnd, debugText.c_str(), L"Проверка текста", MB_OK);
+                     MessageBoxW(
+    hwnd,
+    clickedText.c_str(),
+    L"Текст нажатой ссылки",
+    MB_OK
+);
+MessageBoxW(
+    hwnd,
+    std::to_wstring(helpLinks.size()).c_str(),
+    L"Количество ссылок",
+    MB_OK
+);
+std::wstring debugLinks = L"Нажатый текст:\n" + clickedText +
+                          L"\n\nСохранённые подписи:\n";
+
+for (const auto &item : helpLinks) {
+    debugLinks += L"[" + item.label + L"]\n";
+}
+
+MessageBoxW(hwnd, debugLinks.c_str(), L"Сравнение ссылок", MB_OK);        
+for (const auto &item : helpLinks) {
+          if (item.url == clickedText) {
+            MessageBoxW(
+    hwnd,
+    item.url.c_str(),
+    L"Найден URL ссылки",
+    MB_OK
+);
+            SHELLEXECUTEINFOW sei{};
+sei.cbSize = sizeof(sei);
+sei.fMask = SEE_MASK_FLAG_NO_UI;
+sei.lpVerb = L"open";
+sei.lpFile = item.url.c_str();
+sei.nShow = SW_SHOWNORMAL;
+
+BOOL success = ShellExecuteExW(&sei);
+
+if (!success) {
+    DWORD error = GetLastError();
+
+    MessageBoxW(
+        hwnd,
+        std::to_wstring(error).c_str(),
+        L"Ошибка ShellExecuteExW",
+        MB_OK
+    );
+} else {
+    MessageBoxW(
+        hwnd,
+        L"Запрос на открытие передан Windows",
+        L"Результат",
+        MB_OK
+    );
+}
+
+            break;
+          }
+        }
+      }
+
+      return 0;
+    }
+  }
+
+  break;
+}
 
   case WM_COMMAND:
     switch (LOWORD(wParam)) {

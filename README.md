@@ -57,6 +57,9 @@ VideoCutter/
 Если одного из необходимых файлов нет, соответствующая функция программы
 не сможет работать корректно.
 
+## Скачать FFmpeg
+[Скачать FFmpeg Essentials (.7z)](https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.7z)
+
 ## Интерфейс программы
 
 В программе доступны три вкладки:

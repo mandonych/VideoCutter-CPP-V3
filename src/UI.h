@@ -30,7 +30,8 @@ enum {
     ID_TAB_HELP,
     ID_LOOP_DURATION,
     ID_LOOP_SIZE,
-    ID_LOOP_TARGET
+    ID_LOOP_TARGET,
+    ID_AUDIO_SILENCE
 };
 
 enum class AppMode {
@@ -73,6 +74,7 @@ RECT loopTargetRect{};
   RECT inputRect{};
   RECT browseRect{};
   RECT fileInfoRect{};
+  RECT audioSilenceRect{};
   RECT outputRect{};
   RECT saveRect{};
 
@@ -118,6 +120,8 @@ extern HWND hHelpText;
 extern HWND hLoopDuration;
 extern HWND hLoopSize;
 extern HWND hLoopTarget;
+extern HWND hAudioSilence;
+extern HWND hAudioSilenceLabel;
 extern HFONT hTitleFont;
 
 extern HBRUSH hBgBrush;

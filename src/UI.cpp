@@ -16,6 +16,8 @@ HWND hHelpText = nullptr;
 HWND hLoopDuration = nullptr;
 HWND hLoopSize = nullptr;
 HWND hLoopTarget = nullptr;
+HWND hAudioSilence = nullptr;
+HWND hAudioSilenceLabel = nullptr;
 
 static AppMode activeMode = AppMode::Cut;
 static LoopTargetMode loopTargetMode = LoopTargetMode::Duration;
@@ -61,11 +63,10 @@ LayoutMetrics CalculateLayout(int clientW, int clientH, AppMode mode) {
   int middleTop = 158;
   int bottomPanelTop = m.clientH - footerH - bottomPanelH;
 
-int middleBottom = (mode == AppMode::Help)
-    ? m.clientH - margin
-    : bottomPanelTop - 18;
+  int middleBottom =
+      (mode == AppMode::Help) ? m.clientH - margin : bottomPanelTop - 18;
 
-int middleH = middleBottom - middleTop;
+  int middleH = middleBottom - middleTop;
 
   // 68% left panel, 32% right panel
   int usableW = m.clientW - margin * 2;
@@ -125,8 +126,11 @@ int middleH = middleBottom - middleTop;
   m.fileInfoRect = {leftX + innerPad, srcBlockY + 72, leftX + leftW - innerPad,
                     srcBlockY + 96};
 
+  m.audioSilenceRect = {leftX + innerPad, srcBlockY + 100,
+                        leftX + innerPad + 22, srcBlockY + 126};
+
   // Time range
-  int timeBlockY = middleTop + 125;
+  int timeBlockY = middleTop + 130;
   int timeGap = 18;
   int timeW = (leftW - innerPad * 2 - timeGap) / 2;
 
@@ -377,14 +381,21 @@ void Layout(HWND hwnd, AppMode mode) {
   place(hLoopSize, m.loopSizeRect);
   place(hLoopTarget, m.loopTargetRect);
 
+  place(hAudioSilence, m.audioSilenceRect);
+
+  RECT audioLabelRect = m.audioSilenceRect;
+  audioLabelRect.left += 24;
+  audioLabelRect.right = audioLabelRect.left + 300;
+  place(hAudioSilenceLabel, audioLabelRect);
+
   place(hInput, m.inputRect);
   place(hBrowse, m.browseRect);
   place(hFileInfo, m.fileInfoRect);
   place(hOutput, m.outputRect);
   place(hSave, m.saveRect);
 
-    if (mode == AppMode::Help) {
-          ShowWindow(hHelpText, SW_SHOW);
+  if (mode == AppMode::Help) {
+    ShowWindow(hHelpText, SW_SHOW);
     ShowWindow(hInput, SW_HIDE);
     ShowWindow(hBrowse, SW_HIDE);
     ShowWindow(hFileInfo, SW_HIDE);
@@ -401,7 +412,7 @@ void Layout(HWND hwnd, AppMode mode) {
     ShowWindow(hProgress, SW_HIDE);
     ShowWindow(hStatus, SW_HIDE);
   } else {
-        ShowWindow(hHelpText, SW_HIDE);
+    ShowWindow(hHelpText, SW_HIDE);
     ShowWindow(hInput, SW_SHOW);
     ShowWindow(hBrowse, SW_SHOW);
     ShowWindow(hFileInfo, SW_SHOW);
@@ -410,6 +421,8 @@ void Layout(HWND hwnd, AppMode mode) {
     ShowWindow(hCut, SW_SHOW);
     ShowWindow(hProgress, SW_SHOW);
     ShowWindow(hStatus, SW_SHOW);
+    ShowWindow(hAudioSilence, SW_HIDE);
+    ShowWindow(hAudioSilenceLabel, SW_HIDE);
 
     if (mode == AppMode::Cut) {
       ShowWindow(hPreviewStart, SW_SHOW);
@@ -419,6 +432,8 @@ void Layout(HWND hwnd, AppMode mode) {
       ShowWindow(hLoopDuration, SW_HIDE);
       ShowWindow(hLoopSize, SW_HIDE);
       ShowWindow(hLoopTarget, SW_HIDE);
+      ShowWindow(hAudioSilence, SW_SHOW);
+      ShowWindow(hAudioSilenceLabel, SW_SHOW);
     } else {
       ShowWindow(hPreviewStart, SW_HIDE);
       ShowWindow(hPreviewEnd, SW_HIDE);
@@ -427,6 +442,8 @@ void Layout(HWND hwnd, AppMode mode) {
       ShowWindow(hLoopDuration, SW_SHOW);
       ShowWindow(hLoopSize, SW_SHOW);
       ShowWindow(hLoopTarget, SW_SHOW);
+      ShowWindow(hAudioSilence, SW_HIDE);
+      ShowWindow(hAudioSilenceLabel, SW_HIDE);
     }
   }
 
@@ -440,12 +457,8 @@ void Layout(HWND hwnd, AppMode mode) {
   place(hProgress, m.progressRect);
   place(hStatus, m.statusRect);
 
-    RECT helpRect = {
-      m.leftPanel.left + 20,
-      m.leftPanel.top + 20,
-      m.leftPanel.right - 20,
-      m.leftPanel.bottom - 20
-  };
+  RECT helpRect = {m.leftPanel.left + 20, m.leftPanel.top + 20,
+                   m.leftPanel.right - 20, m.leftPanel.bottom - 20};
 
   place(hHelpText, helpRect);
 
@@ -458,15 +471,13 @@ void Layout(HWND hwnd, AppMode mode) {
 void DrawButton(const DRAWITEMSTRUCT *dis) {
   bool primary = dis->CtlID == ID_CUT;
 
-      bool isTab =
-        dis->CtlID == ID_TAB_CUT ||
-        dis->CtlID == ID_TAB_LOOP ||
-        dis->CtlID == ID_TAB_HELP;
+  bool isTab = dis->CtlID == ID_TAB_CUT || dis->CtlID == ID_TAB_LOOP ||
+               dis->CtlID == ID_TAB_HELP;
 
-      bool isActiveTab =
-        (dis->CtlID == ID_TAB_CUT && activeMode == AppMode::Cut) ||
-        (dis->CtlID == ID_TAB_LOOP && activeMode == AppMode::Loop) ||
-        (dis->CtlID == ID_TAB_HELP && activeMode == AppMode::Help);
+  bool isActiveTab =
+      (dis->CtlID == ID_TAB_CUT && activeMode == AppMode::Cut) ||
+      (dis->CtlID == ID_TAB_LOOP && activeMode == AppMode::Loop) ||
+      (dis->CtlID == ID_TAB_HELP && activeMode == AppMode::Help);
 
   // Loop calculation mode buttons
   bool isLoopOption =

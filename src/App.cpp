@@ -325,47 +325,42 @@ void LoadInputVideo(HWND hwnd, const std::wstring &filename) {
     selectedStartTime = 0.0;
     selectedEndTime = videoInfo.duration;
 
-    
-wchar_t info[1024]{};
-
-std::wstring audioInfo = L"—";
-
-if (videoInfo.hasAudio) {
-    audioInfo = videoInfo.audioCodec;
-
-    if (!videoInfo.audioBitrate.empty()) {
-        try {
-            int bitrate = std::stoi(videoInfo.audioBitrate) / 1000;
-            audioInfo += L" | " + std::to_wstring(bitrate) + L" kb/s";
-        } catch (...) {
-        }
+    if (hAudioSilence) {
+      SendMessageW(hAudioSilence, BM_SETCHECK, BST_UNCHECKED, 0);
+      EnableWindow(hAudioSilence, !videoInfo.hasAudio);
     }
 
-    if (!videoInfo.audioSampleRate.empty()) {
+    wchar_t info[1024]{};
+
+    std::wstring audioInfo = L"—";
+
+    if (videoInfo.hasAudio) {
+      audioInfo = videoInfo.audioCodec;
+
+      if (!videoInfo.audioBitrate.empty()) {
         try {
-            int sampleRate = std::stoi(videoInfo.audioSampleRate) / 1000;
-            audioInfo += L" | " + std::to_wstring(sampleRate) + L" kHz";
+          int bitrate = std::stoi(videoInfo.audioBitrate) / 1000;
+          audioInfo += L" | " + std::to_wstring(bitrate) + L" kb/s";
         } catch (...) {
         }
-    }
+      }
 
-    if (!videoInfo.audioChannels.empty()) {
+      if (!videoInfo.audioSampleRate.empty()) {
+        try {
+          int sampleRate = std::stoi(videoInfo.audioSampleRate) / 1000;
+          audioInfo += L" | " + std::to_wstring(sampleRate) + L" kHz";
+        } catch (...) {
+        }
+      }
+
+      if (!videoInfo.audioChannels.empty()) {
         audioInfo += L" | " + videoInfo.audioChannels;
+      }
     }
-}
 
-swprintf_s(info, L"%s | %dx%d | %.2f FPS | %02d:%02d:%02d | Audio: %s",
-           videoInfo.format.c_str(),
-           videoInfo.width,
-           videoInfo.height,
-           videoInfo.fps,
-           hours,
-           minutes,
-           seconds,
-           audioInfo.c_str());
-
-SetWindowTextW(hFileInfo, info);
-
+    swprintf_s(info, L"%s | %dx%d | %.2f FPS | %02d:%02d:%02d | Audio: %s",
+               videoInfo.format.c_str(), videoInfo.width, videoInfo.height,
+               videoInfo.fps, hours, minutes, seconds, audioInfo.c_str());
 
     SetWindowTextW(hFileInfo, info);
 
@@ -375,6 +370,11 @@ SetWindowTextW(hFileInfo, info);
     RequestPreviewUpdate(hwnd, ID_PREVIEW_START, filename, startPreviewTime);
     RequestPreviewUpdate(hwnd, ID_PREVIEW_END, filename, endPreviewTime);
   } else {
+    if (hAudioSilence) {
+      SendMessageW(hAudioSilence, BM_SETCHECK, BST_UNCHECKED, 0);
+      EnableWindow(hAudioSilence, FALSE);
+    }
+
     SetWindowTextW(hStatus, L"Не удалось прочитать информацию о видео");
     SetWindowTextW(hFileInfo, L"Ошибка чтения видео");
     EnableWindow(hCut, FALSE);
@@ -507,15 +507,34 @@ bool CutVideo(HWND hwnd) {
   double duration = endTime - startTime;
   std::wstring ffmpeg = ffmpegPath.wstring();
 
-  std::wstring command = L"\"" + ffmpeg +
-                         L"\""
-                         L" -y -ss " +
-                         FormatSecondsDot(startTime) + L" -i \"" + input +
-                         L"\""
-                         L" -t " +
-                         FormatSecondsDot(duration) +
-                         L" -c copy -progress pipe:1 -nostats \"" + output +
-                         L"\"";
+  bool addSilentAudio =
+    hAudioSilence &&
+    SendMessageW(hAudioSilence, BM_GETCHECK, 0, 0) == BST_CHECKED;
+
+std::wstring command;
+
+if (addSilentAudio) {
+    command = L"\"" + ffmpeg +
+              L"\" -y -ss " +
+              FormatSecondsDot(startTime) +
+              L" -i \"" + input +
+              L"\" -f lavfi -i anullsrc=channel_layout=mono:sample_rate=44100"
+              L" -t " +
+              FormatSecondsDot(duration) +
+              L" -map 0:v:0 -map 1:a:0"
+              L" -c:v copy -c:a aac -b:a 64k"
+              L" -progress pipe:1 -nostats \"" + output + L"\"";
+} else {
+    command = L"\"" + ffmpeg +
+              L"\""
+              L" -y -ss " +
+              FormatSecondsDot(startTime) + L" -i \"" + input +
+              L"\""
+              L" -t " +
+              FormatSecondsDot(duration) +
+              L" -c copy -progress pipe:1 -nostats \"" + output +
+              L"\"";
+}
 
   isCutting = true;
   EnableWindow(hCut, FALSE);
@@ -1218,6 +1237,30 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wParam,
         CreateLabel(hwnd, L"Перетащите видео сюда или нажмите «Обзор...»");
     hBrowse = CreateButton(hwnd, ID_BROWSE, L"Обзор...");
 
+    hAudioSilence = CreateWindowW(
+    L"BUTTON", L"",
+    WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
+    0, 0, 22, 25, hwnd,
+    reinterpret_cast<HMENU>(static_cast<INT_PTR>(ID_AUDIO_SILENCE)),
+    hInst, nullptr);
+
+hAudioSilenceLabel = CreateWindowW(
+    L"STATIC", L"Добавить пустую аудиодорожку",
+    WS_CHILD | WS_VISIBLE | SS_LEFT,
+    0, 0, 300, 25, hwnd,
+    nullptr, hInst, nullptr);
+
+    
+
+SetFont(hAudioSilence, hFont);
+SetFont(hAudioSilenceLabel, hFont);
+
+
+EnableWindow(hAudioSilence, FALSE);
+
+    SetFont(hAudioSilence, hFont);
+    EnableWindow(hAudioSilence, FALSE);
+
     // Time range
     hStart = CreateEdit(hwnd, ID_START, L"00:00:00");
     hEnd = CreateEdit(hwnd, ID_END, L"00:00:10");
@@ -1281,7 +1324,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wParam,
       return reinterpret_cast<LRESULT>(hBgBrush);
     }
 
-    if (hCtrl == hFileInfo) {
+    if (hCtrl == hFileInfo || hCtrl == hAudioSilenceLabel) {
       SetTextColor(dc, RGB(118, 148, 106));
       SetBkMode(dc, TRANSPARENT);
       return reinterpret_cast<LRESULT>(hPanelBrush);
@@ -1364,64 +1407,57 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wParam,
     break;
   }
 
+  case WM_NOTIFY: {
+    auto *header = reinterpret_cast<NMHDR *>(lParam);
 
-case WM_NOTIFY: {
-  auto *header = reinterpret_cast<NMHDR *>(lParam);
+    if (header && header->hwndFrom == hHelpText && header->code == EN_LINK) {
+      auto *link = reinterpret_cast<ENLINK *>(lParam);
 
-  if (header && header->hwndFrom == hHelpText &&
-      header->code == EN_LINK) {
-    auto *link = reinterpret_cast<ENLINK *>(lParam);
+      if (link->msg == WM_LBUTTONUP) {
+        int length = link->chrg.cpMax - link->chrg.cpMin;
 
-    if (link->msg == WM_LBUTTONUP) {
-      int length = link->chrg.cpMax - link->chrg.cpMin;
+        if (length > 0) {
+          std::wstring clickedText(length + 1, L'\0');
 
-      if (length > 0) {
-        std::wstring clickedText(length + 1, L'\0');
+          TEXTRANGEW range{};
+          range.chrg = link->chrg;
+          range.lpstrText = clickedText.data();
 
-        TEXTRANGEW range{};
-        range.chrg = link->chrg;
-        range.lpstrText = clickedText.data();
+          SendMessageW(hHelpText, EM_GETTEXTRANGE, 0,
+                       reinterpret_cast<LPARAM>(&range));
 
-        SendMessageW(hHelpText, EM_GETTEXTRANGE, 0,
-                     reinterpret_cast<LPARAM>(&range));
+          clickedText.resize(length);
 
-        clickedText.resize(length);
+          for (const auto &item : helpLinks) {
+            if (item.url == clickedText) {
+              if (item.url.rfind(L"https://", 0) == 0 ||
+                  item.url.rfind(L"http://", 0) == 0) {
+                SHELLEXECUTEINFOW sei{};
+                sei.cbSize = sizeof(sei);
+                sei.fMask = SEE_MASK_FLAG_NO_UI;
+                sei.lpVerb = L"open";
+                sei.lpFile = item.url.c_str();
+                sei.nShow = SW_SHOWNORMAL;
 
-        for (const auto &item : helpLinks) {
-          if (item.url == clickedText) {
-            if (item.url.rfind(L"https://", 0) == 0 ||
-                item.url.rfind(L"http://", 0) == 0) {
-              SHELLEXECUTEINFOW sei{};
-              sei.cbSize = sizeof(sei);
-              sei.fMask = SEE_MASK_FLAG_NO_UI;
-              sei.lpVerb = L"open";
-              sei.lpFile = item.url.c_str();
-              sei.nShow = SW_SHOWNORMAL;
+                if (!ShellExecuteExW(&sei)) {
+                  DWORD error = GetLastError();
 
-              if (!ShellExecuteExW(&sei)) {
-                DWORD error = GetLastError();
-
-                MessageBoxW(
-                    hwnd,
-                    std::to_wstring(error).c_str(),
-                    L"Ошибка открытия ссылки",
-                    MB_OK | MB_ICONERROR
-                );
+                  MessageBoxW(hwnd, std::to_wstring(error).c_str(),
+                              L"Ошибка открытия ссылки", MB_OK | MB_ICONERROR);
+                }
               }
-            }
 
-            break;
+              break;
+            }
           }
         }
+
+        return 0;
       }
-
-      return 0;
     }
+
+    break;
   }
-
-  break;
-}
-
 
   case WM_COMMAND:
     switch (LOWORD(wParam)) {

@@ -12,6 +12,7 @@ HWND hFileInfo = nullptr;
 HWND hTabCut = nullptr;
 HWND hTabLoop = nullptr;
 HWND hTabHelp = nullptr;
+HWND hHelpText = nullptr;
 HWND hLoopDuration = nullptr;
 HWND hLoopSize = nullptr;
 HWND hLoopTarget = nullptr;
@@ -379,6 +380,7 @@ void Layout(HWND hwnd, AppMode mode) {
   place(hSave, m.saveRect);
 
     if (mode == AppMode::Help) {
+          ShowWindow(hHelpText, SW_SHOW);
     ShowWindow(hInput, SW_HIDE);
     ShowWindow(hBrowse, SW_HIDE);
     ShowWindow(hFileInfo, SW_HIDE);
@@ -395,6 +397,7 @@ void Layout(HWND hwnd, AppMode mode) {
     ShowWindow(hProgress, SW_HIDE);
     ShowWindow(hStatus, SW_HIDE);
   } else {
+        ShowWindow(hHelpText, SW_HIDE);
     ShowWindow(hInput, SW_SHOW);
     ShowWindow(hBrowse, SW_SHOW);
     ShowWindow(hFileInfo, SW_SHOW);
@@ -432,6 +435,15 @@ void Layout(HWND hwnd, AppMode mode) {
   place(hCut, m.cutBtnRect);
   place(hProgress, m.progressRect);
   place(hStatus, m.statusRect);
+
+    RECT helpRect = {
+      m.leftPanel.left + 20,
+      m.leftPanel.top + 20,
+      m.leftPanel.right - 20,
+      m.leftPanel.bottom - 20
+  };
+
+  place(hHelpText, helpRect);
 
   CenterEditTextVertical(hInput);
   CenterEditTextVertical(hOutput);

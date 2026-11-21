@@ -2,6 +2,8 @@
 #include <windows.h>
 #include <unknwn.h>
 #include <objidl.h>
+#include <richedit.h>
+
 
 #include <commctrl.h>
 #include <commdlg.h>
@@ -21,6 +23,8 @@
 #include <string>
 #include <limits>
 #include <thread>
+#include <fstream>
+#include <iterator>
 
 // Project headers
 #include "App.h"
@@ -598,6 +602,71 @@ bool LoopVideo(HWND hwnd) {
     return true;
 }
 
+void LoadHelpText()
+{
+    const std::filesystem::path readmePath =
+        std::filesystem::path(GetExecutablePath()) / L"README.md";
+
+    std::ifstream file(readmePath, std::ios::binary);
+
+    if (!file.is_open())
+    {
+        SetWindowTextW(
+            hHelpText,
+            L"Не удалось открыть README.md.\r\n\r\n"
+            L"Убедитесь, что файл находится рядом с VideoCutter.exe."
+        );
+        return;
+    }
+
+    std::string content(
+        (std::istreambuf_iterator<char>(file)),
+        std::istreambuf_iterator<char>()
+    );
+
+    if (content.size() >= 3 &&
+        static_cast<unsigned char>(content[0]) == 0xEF &&
+        static_cast<unsigned char>(content[1]) == 0xBB &&
+        static_cast<unsigned char>(content[2]) == 0xBF)
+    {
+        content.erase(0, 3);
+    }
+
+    if (content.empty())
+    {
+        SetWindowTextW(hHelpText, L"Файл README.md пуст.");
+        return;
+    }
+
+    const int length = MultiByteToWideChar(
+        CP_UTF8,
+        0,
+        content.data(),
+        static_cast<int>(content.size()),
+        nullptr,
+        0
+    );
+
+    if (length <= 0)
+    {
+        SetWindowTextW(hHelpText, L"Не удалось прочитать текст README.md.");
+        return;
+    }
+
+    std::wstring text(length, L'\0');
+
+    MultiByteToWideChar(
+        CP_UTF8,
+        0,
+        content.data(),
+        static_cast<int>(content.size()),
+        text.data(),
+        length
+    );
+
+    SetWindowTextW(hHelpText, text.c_str());
+}
+
 } // namespace
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wParam,
@@ -880,6 +949,56 @@ case WM_CAPTURECHANGED:
     hFont = Theme::CreateUIFont(17, FW_NORMAL);
     hTimeFont = Theme::CreateUIFont(29, FW_NORMAL);
     hTitleFont = Theme::CreateUIFont(38, FW_BOLD);
+
+        // Help text control
+    LoadLibraryW(L"Msftedit.dll");
+
+    hHelpText = CreateWindowExW(
+        WS_EX_CLIENTEDGE,
+        MSFTEDIT_CLASS,
+        L"",
+        WS_CHILD | ES_MULTILINE | ES_READONLY |
+        ES_AUTOVSCROLL | WS_VSCROLL,
+        0, 0, 100, 100,
+        hwnd,
+        nullptr,
+        hInst,
+        nullptr
+    );
+
+    SendMessageW(
+        hHelpText,
+        EM_SETBKGNDCOLOR,
+        0,
+        Theme::Panel
+    );
+
+    SendMessageW(
+        hHelpText,
+        WM_SETFONT,
+        reinterpret_cast<WPARAM>(hFont),
+        TRUE
+    );
+
+    ShowWindow(hHelpText, SW_HIDE);
+
+    LoadHelpText();
+
+    // Форматирование текста в стиле Kanagawa Wave
+    CHARFORMAT2W cf{};
+    cf.cbSize = sizeof(cf);
+    cf.dwMask = CFM_COLOR | CFM_FACE | CFM_SIZE;
+    cf.crTextColor = Theme::Text;
+    cf.yHeight = 11 * 20;
+
+    lstrcpynW(cf.szFaceName, Theme::FontFamily, LF_FACESIZE);
+
+    SendMessageW(
+        hHelpText,
+        EM_SETCHARFORMAT,
+        SCF_ALL,
+        reinterpret_cast<LPARAM>(&cf)
+    );
         // Mode tabs
     hTabCut = CreateButton(hwnd, ID_TAB_CUT, L"Нарезка видео");
     hTabLoop = CreateButton(hwnd, ID_TAB_LOOP, L"Зацикливание");

@@ -114,6 +114,7 @@ extern HWND hFileInfo;
 extern HWND hTabCut;
 extern HWND hTabLoop;
 extern HWND hTabHelp;
+extern HWND hHelpText;
 extern HWND hLoopDuration;
 extern HWND hLoopSize;
 extern HWND hLoopTarget;

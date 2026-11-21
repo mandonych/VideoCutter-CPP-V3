@@ -45,6 +45,7 @@ if(MSVC)
 endif()
 
 
+
 add_custom_command(TARGET VideoCutter POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory
         "$<TARGET_FILE_DIR:VideoCutter>/bin"
@@ -60,4 +61,8 @@ add_custom_command(TARGET VideoCutter POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${CMAKE_SOURCE_DIR}/VideoCutter_icon_256.png"
         "$<TARGET_FILE_DIR:VideoCutter>/VideoCutter_icon_256.png"
+
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_SOURCE_DIR}/README.md"
+        "$<TARGET_FILE_DIR:VideoCutter>/README.md"
 )

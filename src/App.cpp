@@ -325,10 +325,47 @@ void LoadInputVideo(HWND hwnd, const std::wstring &filename) {
     selectedStartTime = 0.0;
     selectedEndTime = videoInfo.duration;
 
-    wchar_t info[512]{};
-    swprintf_s(info, L"%s | %dx%d | %.2f FPS | %02d:%02d:%02d",
-               videoInfo.format.c_str(), videoInfo.width, videoInfo.height,
-               videoInfo.fps, hours, minutes, seconds);
+    
+wchar_t info[1024]{};
+
+std::wstring audioInfo = L"—";
+
+if (videoInfo.hasAudio) {
+    audioInfo = videoInfo.audioCodec;
+
+    if (!videoInfo.audioBitrate.empty()) {
+        try {
+            int bitrate = std::stoi(videoInfo.audioBitrate) / 1000;
+            audioInfo += L" | " + std::to_wstring(bitrate) + L" kb/s";
+        } catch (...) {
+        }
+    }
+
+    if (!videoInfo.audioSampleRate.empty()) {
+        try {
+            int sampleRate = std::stoi(videoInfo.audioSampleRate) / 1000;
+            audioInfo += L" | " + std::to_wstring(sampleRate) + L" kHz";
+        } catch (...) {
+        }
+    }
+
+    if (!videoInfo.audioChannels.empty()) {
+        audioInfo += L" | " + videoInfo.audioChannels;
+    }
+}
+
+swprintf_s(info, L"%s | %dx%d | %.2f FPS | %02d:%02d:%02d | Audio: %s",
+           videoInfo.format.c_str(),
+           videoInfo.width,
+           videoInfo.height,
+           videoInfo.fps,
+           hours,
+           minutes,
+           seconds,
+           audioInfo.c_str());
+
+SetWindowTextW(hFileInfo, info);
+
 
     SetWindowTextW(hFileInfo, info);
 

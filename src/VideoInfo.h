@@ -8,6 +8,12 @@ struct VideoInfo {
     int width = 0;
     int height = 0;
     std::wstring format;
+
+    bool hasAudio = false;
+    std::wstring audioCodec;
+    std::wstring audioBitrate;
+    std::wstring audioSampleRate;
+    std::wstring audioChannels;
 };
 
 bool ProbeVideo(

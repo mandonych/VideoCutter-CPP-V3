@@ -7,7 +7,6 @@
 #include <vector>
 #include <windows.h>
 
-
 namespace {
 
 std::wstring GetProbeValue(const std::wstring &output,
@@ -52,6 +51,41 @@ double ParseFps(const std::wstring &value) {
   }
 }
 
+
+std::wstring GetStreamProbeValue(
+    const std::wstring& output,
+    const std::wstring& streamType,
+    const std::wstring& key)
+{
+    const std::wstring typeMarker =
+        L".codec_type=\"" + streamType + L"\"";
+
+    size_t typePos = output.find(typeMarker);
+
+    if (typePos == std::wstring::npos)
+        return L"";
+
+    size_t lineStart = output.rfind(L'\n', typePos);
+
+    if (lineStart == std::wstring::npos)
+        lineStart = 0;
+    else
+        ++lineStart;
+
+    size_t prefixEnd = output.find(L".codec_type=", lineStart);
+
+    if (prefixEnd == std::wstring::npos)
+        return L"";
+
+    std::wstring prefix = output.substr(
+        lineStart,
+        prefixEnd - lineStart
+    );
+
+    return GetProbeValue(output, prefix + L"." + key);
+}
+
+
 std::wstring GetDisplayFormat(const std::wstring &filename,
                               const std::wstring &originalFormat) {
   std::wstring extension =
@@ -76,13 +110,14 @@ bool RunFFprobe(const std::wstring &filename, std::wstring &output) {
   if (!std::filesystem::exists(probePath))
     return false;
 
-  std::wstring command = L"\"" + probePath.wstring() +
-                         L"\" -v error "
-                         L"-select_streams v:0 "
-                         L"-show_entries format=duration,format_name:"
-                         L"stream=width,height,avg_frame_rate "
-                         L"-of flat \"" +
-                         filename + L"\"";
+  std::wstring command =
+      L"\"" + probePath.wstring() +
+      L"\" -v error "
+      L"-show_entries "
+      L"format=duration,format_name:stream=codec_type,codec_name,width,height,"
+      L"avg_frame_rate,bit_rate,sample_rate,channels,channel_layout "
+      L"-of flat \"" +
+      filename + L"\"";
 
   SECURITY_ATTRIBUTES sa{};
   sa.nLength = sizeof(sa);
@@ -160,6 +195,8 @@ bool RunFFprobe(const std::wstring &filename, std::wstring &output) {
 
 } // namespace
 
+
+
 bool ProbeVideo(const std::wstring &filename, VideoInfo &info) {
   std::wstring output;
 
@@ -171,16 +208,39 @@ bool ProbeVideo(const std::wstring &filename, VideoInfo &info) {
 
     result.duration = std::stod(GetProbeValue(output, L"format.duration"));
 
-    result.width = std::stoi(GetProbeValue(output, L"streams.stream.0.width"));
+    result.width =
+        std::stoi(GetStreamProbeValue(output, L"video", L"width"));
 
     result.height =
-        std::stoi(GetProbeValue(output, L"streams.stream.0.height"));
+        std::stoi(GetStreamProbeValue(output, L"video", L"height"));
 
     result.fps =
-        ParseFps(GetProbeValue(output, L"streams.stream.0.avg_frame_rate"));
+        ParseFps(GetStreamProbeValue(output, L"video", L"avg_frame_rate"));
 
     result.format = GetDisplayFormat(
         filename, GetProbeValue(output, L"format.format_name"));
+
+    // Audio information
+    result.audioCodec =
+        GetStreamProbeValue(output, L"audio", L"codec_name");
+
+    result.hasAudio = !result.audioCodec.empty();
+
+    if (result.hasAudio) {
+      result.audioBitrate =
+          GetStreamProbeValue(output, L"audio", L"bit_rate");
+
+      result.audioSampleRate =
+          GetStreamProbeValue(output, L"audio", L"sample_rate");
+
+      result.audioChannels =
+          GetStreamProbeValue(output, L"audio", L"channel_layout");
+
+      if (result.audioChannels.empty()) {
+        result.audioChannels =
+            GetStreamProbeValue(output, L"audio", L"channels");
+      }
+    }
 
     if (result.duration <= 0 || result.width <= 0 || result.height <= 0) {
       return false;

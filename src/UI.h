@@ -101,6 +101,9 @@ LayoutMetrics CalculateLayout(
 
 extern HFONT hFont;
 extern HFONT hTimeFont;
+extern HFONT hButtonFont;
+extern HFONT hInfoFont;
+extern HFONT hPreviewFont;
 extern HWND hInput;
 extern HWND hBrowse;
 extern HWND hStart;

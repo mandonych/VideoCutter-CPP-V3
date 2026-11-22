@@ -46,14 +46,31 @@ namespace Theme
         RGB(96, 124, 181);
 
     // =====================================
-    // Typography
-    // =====================================
+// Typography
+// =====================================
 
-    inline constexpr wchar_t FontFamily[] = L"Segoe UI";
+inline constexpr wchar_t FontFamily[] = L"Segoe UI";
 
-    inline constexpr int FontSize = 17;
-    inline constexpr int SectionFontSize = 20;
-    inline constexpr int TitleFontSize = 29;
+// Основной текст
+inline constexpr int FontSize = 18;
+
+// Заголовки секций
+inline constexpr int SectionFontSize = 20;
+
+// Кнопки
+inline constexpr int ButtonFontSize = 19;
+
+// Информационные надписи
+inline constexpr int InfoFontSize = 18;
+
+// Поля времени
+inline constexpr int TimeFontSize = 29;
+
+// Заголовок приложения
+inline constexpr int TitleFontSize = 38;
+
+// Подписи кадров предпросмотра
+inline constexpr int PreviewFontSize = 18;
 
     // =====================================
     // Main window

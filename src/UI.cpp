@@ -33,6 +33,9 @@ LoopTargetMode GetLoopTargetMode() { return loopTargetMode; }
 HFONT hFont = nullptr;
 HFONT hTimeFont = nullptr;
 HFONT hTitleFont = nullptr;
+HFONT hButtonFont = nullptr;
+HFONT hInfoFont = nullptr;
+HFONT hPreviewFont = nullptr;
 HBRUSH hBgBrush = nullptr;
 HBRUSH hPanelBrush = nullptr;
 HBRUSH hEditBrush = nullptr;
@@ -515,12 +518,22 @@ void DrawButton(const DRAWITEMSTRUCT *dis) {
   DeleteObject(brush);
 
   SetBkMode(dis->hDC, TRANSPARENT);
-  SetTextColor(dis->hDC, textColor);
+SetTextColor(dis->hDC, textColor);
 
-  wchar_t text[128]{};
-  GetWindowTextW(dis->hwndItem, text, 128);
+HGDIOBJ oldFont = SelectObject(dis->hDC, hButtonFont);
 
-  RECT rect = dis->rcItem;
+wchar_t text[128]{};
+GetWindowTextW(dis->hwndItem, text, 128);
 
-  DrawTextW(dis->hDC, text, -1, &rect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+RECT rect = dis->rcItem;
+
+DrawTextW(
+    dis->hDC,
+    text,
+    -1,
+    &rect,
+    DT_CENTER | DT_VCENTER | DT_SINGLELINE
+);
+
+SelectObject(dis->hDC, oldFont);
 }

@@ -508,23 +508,22 @@ bool CutVideo(HWND hwnd) {
   std::wstring ffmpeg = ffmpegPath.wstring();
 
   bool addSilentAudio =
-    hAudioSilence &&
-    SendMessageW(hAudioSilence, BM_GETCHECK, 0, 0) == BST_CHECKED;
+      hAudioSilence &&
+      SendMessageW(hAudioSilence, BM_GETCHECK, 0, 0) == BST_CHECKED;
 
-std::wstring command;
+  std::wstring command;
 
-if (addSilentAudio) {
-    command = L"\"" + ffmpeg +
-              L"\" -y -ss " +
-              FormatSecondsDot(startTime) +
+  if (addSilentAudio) {
+    command = L"\"" + ffmpeg + L"\" -y -ss " + FormatSecondsDot(startTime) +
               L" -i \"" + input +
               L"\" -f lavfi -i anullsrc=channel_layout=mono:sample_rate=44100"
               L" -t " +
               FormatSecondsDot(duration) +
               L" -map 0:v:0 -map 1:a:0"
               L" -c:v copy -c:a aac -b:a 64k"
-              L" -progress pipe:1 -nostats \"" + output + L"\"";
-} else {
+              L" -progress pipe:1 -nostats \"" +
+              output + L"\"";
+  } else {
     command = L"\"" + ffmpeg +
               L"\""
               L" -y -ss " +
@@ -532,9 +531,8 @@ if (addSilentAudio) {
               L"\""
               L" -t " +
               FormatSecondsDot(duration) +
-              L" -c copy -progress pipe:1 -nostats \"" + output +
-              L"\"";
-}
+              L" -c copy -progress pipe:1 -nostats \"" + output + L"\"";
+  }
 
   isCutting = true;
   EnableWindow(hCut, FALSE);
@@ -1193,10 +1191,11 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wParam,
     hPanelBrush = Theme::CreateThemeBrush(PANEL_COLOR);
     hEditBrush = Theme::CreateThemeBrush(PANEL_COLOR);
 
-    hFont = Theme::CreateUIFont(17, FW_NORMAL);
-    hTimeFont = Theme::CreateUIFont(29, FW_NORMAL);
-    hTitleFont = Theme::CreateUIFont(38, FW_BOLD);
-
+    hFont = Theme::CreateUIFont(Theme::FontSize, FW_NORMAL);
+    hTimeFont = Theme::CreateUIFont(Theme::TimeFontSize, FW_NORMAL);
+    hTitleFont = Theme::CreateUIFont(Theme::TitleFontSize, FW_BOLD);
+    hButtonFont = Theme::CreateUIFont(Theme::ButtonFontSize, FW_NORMAL);
+    hInfoFont = Theme::CreateUIFont(Theme::InfoFontSize, FW_NORMAL);
     // Help text control
     LoadLibraryW(L"Msftedit.dll");
 
@@ -1234,28 +1233,24 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wParam,
     hInput = CreateEdit(hwnd, ID_INPUT);
     hFileInfo =
         CreateLabel(hwnd, L"Перетащите видео сюда или нажмите «Обзор...»");
+    SetFont(hFileInfo, hInfoFont);
+    hPreviewFont = Theme::CreateUIFont(Theme::PreviewFontSize, FW_NORMAL);
     hBrowse = CreateButton(hwnd, ID_BROWSE, L"Обзор...");
 
     hAudioSilence = CreateWindowW(
-    L"BUTTON", L"",
-    WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
-    0, 0, 22, 25, hwnd,
-    reinterpret_cast<HMENU>(static_cast<INT_PTR>(ID_AUDIO_SILENCE)),
-    hInst, nullptr);
+        L"BUTTON", L"", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 0, 0, 22, 25,
+        hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(ID_AUDIO_SILENCE)),
+        hInst, nullptr);
 
-hAudioSilenceLabel = CreateWindowW(
-    L"STATIC", L"Добавить пустую аудиодорожку",
-    WS_CHILD | WS_VISIBLE | SS_LEFT,
-    0, 0, 300, 25, hwnd,
-    nullptr, hInst, nullptr);
+    hAudioSilenceLabel =
+        CreateWindowW(L"STATIC", L"Добавить пустую аудиодорожку",
+                      WS_CHILD | WS_VISIBLE | SS_LEFT, 0, 0, 300, 25, hwnd,
+                      nullptr, hInst, nullptr);
 
-    
+    SetFont(hAudioSilence, hFont);
+    SetFont(hAudioSilenceLabel, hInfoFont);
 
-SetFont(hAudioSilence, hFont);
-SetFont(hAudioSilenceLabel, hFont);
-
-
-EnableWindow(hAudioSilence, FALSE);
+    EnableWindow(hAudioSilence, FALSE);
 
     SetFont(hAudioSilence, hFont);
     EnableWindow(hAudioSilence, FALSE);
@@ -1380,15 +1375,23 @@ EnableWindow(hAudioSilence, FALSE);
 
         graphics.DrawImage(bitmap, x, y, drawWidth, drawHeight);
       } else {
-        SetBkMode(dis->hDC, TRANSPARENT);
-        SetTextColor(dis->hDC, MUTED_COLOR);
+    SetBkMode(dis->hDC, TRANSPARENT);
+    SetTextColor(dis->hDC, MUTED_COLOR);
 
-        RECT textRect = dis->rcItem;
-        DrawTextW(dis->hDC,
-                  dis->CtlID == ID_PREVIEW_START ? L"Начальный кадр"
-                                                 : L"Конечный кадр",
-                  -1, &textRect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-      }
+    HGDIOBJ oldFont = SelectObject(dis->hDC, hPreviewFont);
+
+    RECT textRect = dis->rcItem;
+    DrawTextW(
+        dis->hDC,
+        dis->CtlID == ID_PREVIEW_START ? L"Начальный кадр"
+                                       : L"Конечный кадр",
+        -1,
+        &textRect,
+        DT_CENTER | DT_VCENTER | DT_SINGLELINE
+    );
+
+    SelectObject(dis->hDC, oldFont);
+}
 
       HPEN pen = CreatePen(PS_SOLID, 2, Theme::AccentSecondary);
       HGDIOBJ oldPen = SelectObject(dis->hDC, pen);
@@ -1792,6 +1795,9 @@ EnableWindow(hAudioSilence, FALSE);
     DeleteObject(hFont);
     DeleteObject(hTitleFont);
     DeleteObject(hTimeFont);
+    DeleteObject(hButtonFont);
+    DeleteObject(hInfoFont);
+    DeleteObject(hPreviewFont);
 
     PostQuitMessage(0);
     return 0;

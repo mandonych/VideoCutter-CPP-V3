@@ -58,10 +58,10 @@ inline constexpr int FontSize = 18;
 inline constexpr int SectionFontSize = 20;
 
 // Кнопки
-inline constexpr int ButtonFontSize = 19;
+inline constexpr int ButtonFontSize = 22;
 
 // Информационные надписи
-inline constexpr int InfoFontSize = 18;
+inline constexpr int InfoFontSize = 20;
 
 // Поля времени
 inline constexpr int TimeFontSize = 29;
@@ -70,14 +70,14 @@ inline constexpr int TimeFontSize = 29;
 inline constexpr int TitleFontSize = 38;
 
 // Подписи кадров предпросмотра
-inline constexpr int PreviewFontSize = 18;
+inline constexpr int PreviewFontSize = 22;
 
     // =====================================
     // Main window
     // =====================================
 
     inline constexpr int WindowWidth = 880;
-    inline constexpr int WindowHeight = 608;
+    inline constexpr int WindowHeight = 628;
 
     HFONT CreateUIFont(int height, int weight = FW_NORMAL);
     HBRUSH CreateThemeBrush(COLORREF color);

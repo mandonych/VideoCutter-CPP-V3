@@ -1,37 +1,56 @@
 #include "MainWindow.h"
 #include "ui_MainWindow.h"
 
+#include <QCoreApplication>
+#include <QDir>
+#include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QMessageBox>
 #include <QMimeData>
 #include <QUrl>
 #include <algorithm>
+#include <cmath>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), ui(new Ui::MainWindow), m_processor(new VideoProcessor(this)) {
     ui->setupUi(this);
 
     setWindowTitle("Video Cutter");
-    setAcceptDrops(true); // Разрешаем перетаскивание файлов в окно
+    setAcceptDrops(true);
 
-    // Открываем первую вкладку по умолчанию (в .ui стояла третья)
     ui->mainTabWidget->setCurrentIndex(0);
     ui->cutButton->setEnabled(false);
     ui->addAudioTrackCheckBox->setEnabled(false);
 
-    // Подключаем кнопки и поля
+    // Кнопки выбора файлов на обеих вкладках
     connect(ui->browseButton, &QPushButton::clicked, this, &MainWindow::onBrowseClicked);
+    connect(ui->loopBrowseButton, &QPushButton::clicked, this, &MainWindow::onBrowseClicked);
+
     connect(ui->saveOutputButton, &QPushButton::clicked, this, &MainWindow::onSaveOutputClicked);
-    connect(ui->cutButton, &QPushButton::clicked, this, &MainWindow::onCutClicked);
-    connect(ui->startTimeEdit, &QLineEdit::editingFinished, this, &MainWindow::onTimeEdited);
-    connect(ui->endTimeEdit, &QLineEdit::editingFinished, this, &MainWindow::onTimeEdited);
+    connect(ui->loopSaveOutputButton, &QPushButton::clicked, this, &MainWindow::onSaveOutputClicked);
+
+    // Главная кнопка действия и переключение вкладок
+    connect(ui->cutButton, &QPushButton::clicked, this, &MainWindow::onActionClicked);
     connect(ui->mainTabWidget, &QTabWidget::currentChanged, this, &MainWindow::onTabChanged);
 
-    // Подключаем сигналы от FFmpeg
+    // Вкладка 1: Время и таймлайн
+    connect(ui->startTimeEdit, &QLineEdit::editingFinished, this, &MainWindow::onTimeEdited);
+    connect(ui->endTimeEdit, &QLineEdit::editingFinished, this, &MainWindow::onTimeEdited);
+    connect(ui->timelineWidget, &TimelineWidget::rangeChanged, this, &MainWindow::onTimelineRangeChanged);
+    connect(ui->timelineWidget, &TimelineWidget::rangeChangeFinished, this, &MainWindow::onTimelineRangeFinished);
+
+    // Вкладка 2: Настройки цикла
+    connect(ui->loopByDurationRadio, &QRadioButton::toggled, this, &MainWindow::onLoopModeChanged);
+    connect(ui->loopTargetEdit, &QLineEdit::textChanged, this, &MainWindow::updateLoopCalculation);
+
+    // Сигналы FFmpeg
     connect(m_processor, &VideoProcessor::previewReady, this, &MainWindow::onPreviewReady);
     connect(m_processor, &VideoProcessor::progressChanged, this, &MainWindow::onProgressChanged);
-    connect(m_processor, &VideoProcessor::finished, this, &MainWindow::onCutFinished);
+    connect(m_processor, &VideoProcessor::finished, this, &MainWindow::onProcessFinished);
+
+    // Загрузка инструкции из README.md
+    loadHelpText();
 }
 
 MainWindow::~MainWindow() {
@@ -67,29 +86,36 @@ void MainWindow::onBrowseClicked() {
 }
 
 void MainWindow::onSaveOutputClicked() {
+    const bool isLoopTab = (ui->mainTabWidget->currentIndex() == 1);
+    QLineEdit *targetEdit = isLoopTab ? ui->loopOutputFileEdit : ui->outputFileEdit;
+
     const QString file = QFileDialog::getSaveFileName(
         this,
-        "Сохранить видеофрагмент",
-        ui->outputFileEdit->text(),
+        isLoopTab ? "Сохранить зацикленное видео" : "Сохранить видеофрагмент",
+        targetEdit->text(),
         "MP4 видео (*.mp4);;MKV видео (*.mkv);;Все файлы (*.*)"
     );
     if (!file.isEmpty()) {
-        ui->outputFileEdit->setText(file);
+        targetEdit->setText(file);
     }
 }
 
 void MainWindow::loadInputVideo(const QString &filePath) {
     ui->inputFileEdit->setText(filePath);
-    ui->outputFileEdit->setText(makeDefaultOutputName(filePath));
+    ui->loopInputFileEdit->setText(filePath);
+
+    ui->outputFileEdit->setText(makeDefaultOutputName(filePath, "_cut"));
+    ui->loopOutputFileEdit->setText(makeDefaultOutputName(filePath, "_loop"));
 
     if (ProbeVideo(filePath, m_videoInfo)) {
+        m_sourceFileSize = QFileInfo(filePath).size();
         m_startTime = 0.0;
         m_endTime = m_videoInfo.duration;
 
         ui->startTimeEdit->setText("00:00:00");
         ui->endTimeEdit->setText(formatTime(m_endTime));
+        ui->timelineWidget->setDuration(m_videoInfo.duration);
 
-        // Включаем опцию добавления тихой аудиодорожки только если в видео нет звука
         ui->addAudioTrackCheckBox->setChecked(false);
         ui->addAudioTrackCheckBox->setEnabled(!m_videoInfo.hasAudio);
 
@@ -104,14 +130,21 @@ void MainWindow::loadInputVideo(const QString &filePath) {
         }
 
         ui->dropHintLabel->setText(info);
+        ui->loopInfoLabel->setText(info);
+
         ui->cutButton->setEnabled(true);
         ui->statusbar->showMessage("Информация о видео загружена", 4000);
 
         updatePreviews();
+        updateLoopCalculation();
     } else {
-        ui->dropHintLabel->setText("Не удалось прочитать информацию о видео (проверьте bin/ffprobe.exe)");
+        m_sourceFileSize = 0;
+        const QString err = "Не удалось прочитать информацию о видео (проверьте bin/ffprobe.exe)";
+        ui->dropHintLabel->setText(err);
+        ui->loopInfoLabel->setText(err);
         ui->cutButton->setEnabled(false);
         ui->addAudioTrackCheckBox->setEnabled(false);
+        updateLoopCalculation();
     }
 }
 
@@ -134,6 +167,20 @@ void MainWindow::onTimeEdited() {
 
     m_startTime = start;
     m_endTime = std::min(end, m_videoInfo.duration);
+    ui->timelineWidget->setRange(m_startTime, m_endTime);
+    updatePreviews();
+}
+
+void MainWindow::onTimelineRangeChanged(double startTime, double endTime) {
+    m_startTime = startTime;
+    m_endTime = endTime;
+    ui->startTimeEdit->setText(formatTime(m_startTime));
+    ui->endTimeEdit->setText(formatTime(m_endTime));
+}
+
+void MainWindow::onTimelineRangeFinished(double startTime, double endTime) {
+    m_startTime = startTime;
+    m_endTime = endTime;
     updatePreviews();
 }
 
@@ -162,33 +209,116 @@ void MainWindow::onPreviewReady(int targetId, uint64_t requestId, const QImage &
     }
 }
 
-void MainWindow::onCutClicked() {
+void MainWindow::onLoopModeChanged() {
+    if (ui->loopByDurationRadio->isChecked()) {
+        ui->loopTargetLabel->setText("Целевая длительность (ЧЧ:ММ:СС)");
+        ui->loopTargetEdit->setText("00:10:00");
+    } else {
+        ui->loopTargetLabel->setText("Целевой размер (МБ)");
+        ui->loopTargetEdit->setText("1000");
+    }
+    updateLoopCalculation();
+}
+
+void MainWindow::updateLoopCalculation() {
+    m_loopRepeatCount = 0;
+    m_loopResultDuration = 0.0;
+    m_loopValid = false;
+
+    if (m_videoInfo.duration > 0.0 && m_sourceFileSize > 0) {
+        if (ui->loopByDurationRadio->isChecked()) {
+            double targetSeconds = 0.0;
+            if (parseTime(ui->loopTargetEdit->text(), targetSeconds) && targetSeconds > 0.0) {
+                double repeats = std::floor((targetSeconds + 0.1) / m_videoInfo.duration);
+                if (repeats >= 1.0 && repeats <= 100000.0) {
+                    m_loopRepeatCount = static_cast<int>(repeats);
+                    m_loopValid = true;
+                }
+            }
+        } else {
+            QString raw = ui->loopTargetEdit->text().trimmed();
+            raw.replace(',', '.');
+            bool ok = false;
+            double targetMB = raw.toDouble(&ok);
+            if (ok && targetMB > 0.0) {
+                double targetBytes = targetMB * 1024.0 * 1024.0;
+                double repeats = std::floor(targetBytes / static_cast<double>(m_sourceFileSize));
+                if (repeats >= 1.0 && repeats <= 100000.0) {
+                    m_loopRepeatCount = static_cast<int>(repeats);
+                    m_loopValid = true;
+                }
+            }
+        }
+    }
+
+    if (m_loopValid) {
+        m_loopResultDuration = m_videoInfo.duration * m_loopRepeatCount;
+        double resultMB = (static_cast<double>(m_sourceFileSize) * m_loopRepeatCount) / (1024.0 * 1024.0);
+
+        ui->loopResultDurationLabel->setText("Длительность: " + formatTime(m_loopResultDuration));
+        ui->loopResultSizeLabel->setText(QString("Размер файла: %1 МБ").arg(resultMB, 0, 'f', 1));
+        ui->loopResultRepeatsLabel->setText(QString("Количество повторов: %1").arg(m_loopRepeatCount));
+    } else {
+        ui->loopResultDurationLabel->setText("Длительность: —");
+        ui->loopResultSizeLabel->setText("Размер файла: —");
+        ui->loopResultRepeatsLabel->setText("Количество повторов: —");
+    }
+}
+
+void MainWindow::onActionClicked() {
     if (m_processor->isBusy())
         return;
 
-    const QString input = ui->inputFileEdit->text();
-    const QString output = ui->outputFileEdit->text();
+    const int tabIndex = ui->mainTabWidget->currentIndex();
 
-    if (input.isEmpty() || output.isEmpty())
-        return;
+    if (tabIndex == 0) {
+        // Режим нарезки
+        const QString input = ui->inputFileEdit->text();
+        const QString output = ui->outputFileEdit->text();
+        if (input.isEmpty() || output.isEmpty())
+            return;
 
-    ui->cutButton->setEnabled(false);
-    ui->progressBar->setValue(0);
-    ui->statusbar->showMessage("Выполняется обрезка видео...");
+        ui->cutButton->setEnabled(false);
+        ui->progressBar->setValue(0);
+        ui->statusbar->showMessage("Выполняется обрезка видео...");
 
-    m_processor->startCut(input, output, m_startTime, m_endTime, ui->addAudioTrackCheckBox->isChecked());
+        m_processor->startCut(input, output, m_startTime, m_endTime, ui->addAudioTrackCheckBox->isChecked());
+    } else if (tabIndex == 1) {
+        // Режим зацикливания
+        const QString input = ui->loopInputFileEdit->text();
+        const QString output = ui->loopOutputFileEdit->text();
+
+        if (input.isEmpty() || output.isEmpty())
+            return;
+
+        if (!m_loopValid || m_loopRepeatCount < 1) {
+            QMessageBox::warning(this, "Video Cutter", "Невозможно создать цикл: проверьте целевое значение.");
+            return;
+        }
+
+        if (QFileInfo(input).canonicalFilePath() == QFileInfo(output).canonicalFilePath()) {
+            QMessageBox::warning(this, "Video Cutter", "Выходной файл не должен совпадать с исходным.");
+            return;
+        }
+
+        ui->cutButton->setEnabled(false);
+        ui->progressBar->setValue(0);
+        ui->statusbar->showMessage("Создаётся зацикленное видео...");
+
+        m_processor->startLoop(input, output, m_loopRepeatCount, m_loopResultDuration);
+    }
 }
 
 void MainWindow::onProgressChanged(int percent) {
     ui->progressBar->setValue(percent);
 }
 
-void MainWindow::onCutFinished(bool success, const QString &errorMessage) {
+void MainWindow::onProcessFinished(bool success, const QString &errorMessage) {
     ui->cutButton->setEnabled(true);
     if (success) {
         ui->progressBar->setValue(100);
-        ui->statusbar->showMessage("Нарезка успешно завершена!", 5000);
-        QMessageBox::information(this, "Video Cutter", "Нарезка видео успешно завершена!");
+        ui->statusbar->showMessage("Операция успешно завершена!", 5000);
+        QMessageBox::information(this, "Video Cutter", "Обработка видео успешно завершена!");
     } else {
         ui->statusbar->showMessage("Ошибка при обработке видео", 5000);
         QMessageBox::critical(this, "Video Cutter", errorMessage.isEmpty() ? "Ошибка FFmpeg." : errorMessage);
@@ -197,24 +327,47 @@ void MainWindow::onCutFinished(bool success, const QString &errorMessage) {
 }
 
 void MainWindow::onTabChanged(int index) {
-    if (index == 0) {
-        ui->subtitleLabel->setText("Быстрая обрезка без перекодирования");
-        ui->cutButton->setText("Обрезать видео");
-    } else if (index == 1) {
-        ui->subtitleLabel->setText("Создание зацикленного видео");
-        ui->cutButton->setText("Создать цикл");
-    } else {
+    const bool isHelpTab = (index == 2);
+
+    ui->progressBar->setVisible(!isHelpTab);
+    ui->cutButton->setVisible(!isHelpTab);
+
+    if (isHelpTab) {
+        ui->mainTabWidget->resize(ui->mainTabWidget->width(), 470);
         ui->subtitleLabel->setText("Краткая инструкция");
+    } else {
+        ui->mainTabWidget->resize(ui->mainTabWidget->width(), 391);
+        if (index == 0) {
+            ui->subtitleLabel->setText("Быстрая обрезка без перекодирования");
+            ui->cutButton->setText("Обрезать видео");
+        } else if (index == 1) {
+            ui->subtitleLabel->setText("Создание зацикленного видео");
+            ui->cutButton->setText("Создать цикл");
+        }
     }
 }
 
-QString MainWindow::makeDefaultOutputName(const QString &inputPath) const {
+void MainWindow::loadHelpText() {
+    QString readmePath = QDir(QCoreApplication::applicationDirPath()).filePath("README.md");
+    if (!QFile::exists(readmePath)) {
+        readmePath = QDir(QCoreApplication::applicationDirPath()).filePath("../README.md");
+    }
+
+    QFile file(readmePath);
+    if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        ui->helpTextBrowser->setMarkdown(QString::fromUtf8(file.readAll()));
+    } else {
+        ui->helpTextBrowser->setPlainText("Файл README.md не найден рядом с программой.");
+    }
+}
+
+QString MainWindow::makeDefaultOutputName(const QString &inputPath, const QString &suffixTag) const {
     const QFileInfo fi(inputPath);
     const QString suffix = fi.completeSuffix();
     if (suffix.isEmpty()) {
-        return fi.absolutePath() + "/" + fi.baseName() + "_cut";
+        return fi.absolutePath() + "/" + fi.baseName() + suffixTag;
     }
-    return fi.absolutePath() + "/" + fi.completeBaseName() + "_cut." + suffix;
+    return fi.absolutePath() + "/" + fi.completeBaseName() + suffixTag + "." + suffix;
 }
 
 bool MainWindow::parseTime(const QString &raw, double &seconds) const {

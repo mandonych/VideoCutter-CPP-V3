@@ -156,7 +156,7 @@ QTabBar::tab:hover:!selected {
 }</string>
     </property>
     <property name="currentIndex">
-     <number>0</number>
+     <number>1</number>
     </property>
     <widget class="QWidget" name="tab">
      <property name="styleSheet">
@@ -540,6 +540,25 @@ QPushButton:pressed {
        <set>Qt::AlignmentFlag::AlignCenter</set>
       </property>
      </widget>
+     <widget class="TimelineWidget" name="timelineWidget" native="true">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>190</y>
+        <width>471</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="mouseTracking">
+       <bool>false</bool>
+      </property>
+      <property name="tabletTracking">
+       <bool>false</bool>
+      </property>
+      <property name="styleSheet">
+       <string notr="true"/>
+      </property>
+     </widget>
     </widget>
     <widget class="QWidget" name="tab_2">
      <property name="styleSheet">
@@ -550,6 +569,180 @@ QPushButton:pressed {
      <attribute name="title">
       <string>Зацикливание</string>
      </attribute>
+     <widget class="QLineEdit" name="loopInputFileEdit">
+      <property name="geometry">
+       <rect>
+        <x>30</x>
+        <y>20</y>
+        <width>281</width>
+        <height>26</height>
+       </rect>
+      </property>
+      <property name="readOnly">
+       <bool>true</bool>
+      </property>
+      <property name="placeholderText">
+       <string>Путь к видеофайлу...</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="loopBrowseButton">
+      <property name="geometry">
+       <rect>
+        <x>360</x>
+        <y>20</y>
+        <width>81</width>
+        <height>26</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Обзор</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="loopInfoLabel">
+      <property name="geometry">
+       <rect>
+        <x>40</x>
+        <y>60</y>
+        <width>301</width>
+        <height>16</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Перетащите видеофайл сюда или нажмите «Обзор»</string>
+      </property>
+     </widget>
+     <widget class="QRadioButton" name="loopByDurationRadio">
+      <property name="geometry">
+       <rect>
+        <x>40</x>
+        <y>90</y>
+        <width>171</width>
+        <height>24</height>
+       </rect>
+      </property>
+      <property name="styleSheet">
+       <string notr="true"/>
+      </property>
+      <property name="text">
+       <string>По длительности</string>
+      </property>
+      <property name="checkable">
+       <bool>true</bool>
+      </property>
+      <property name="checked">
+       <bool>true</bool>
+      </property>
+     </widget>
+     <widget class="QRadioButton" name="loopBySizeRadio">
+      <property name="geometry">
+       <rect>
+        <x>230</x>
+        <y>90</y>
+        <width>131</width>
+        <height>24</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>По размеру (МБ)</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="loopTargetLabel">
+      <property name="geometry">
+       <rect>
+        <x>40</x>
+        <y>120</y>
+        <width>211</width>
+        <height>16</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Целевая длительность (ЧЧ:ММ:СС)</string>
+      </property>
+     </widget>
+     <widget class="QLineEdit" name="loopTargetEdit">
+      <property name="geometry">
+       <rect>
+        <x>40</x>
+        <y>150</y>
+        <width>181</width>
+        <height>26</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>00:10:00</string>
+      </property>
+      <property name="maxLength">
+       <number>8</number>
+      </property>
+     </widget>
+     <widget class="QLabel" name="loopResultDurationLabel">
+      <property name="geometry">
+       <rect>
+        <x>570</x>
+        <y>60</y>
+        <width>201</width>
+        <height>16</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Длительность: —</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="loopResultSizeLabel">
+      <property name="geometry">
+       <rect>
+        <x>570</x>
+        <y>100</y>
+        <width>121</width>
+        <height>16</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Размер файла: —</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="loopResultRepeatsLabel">
+      <property name="geometry">
+       <rect>
+        <x>570</x>
+        <y>140</y>
+        <width>151</width>
+        <height>16</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Количество повторов: —</string>
+      </property>
+     </widget>
+     <widget class="QLineEdit" name="loopOutputFileEdit">
+      <property name="geometry">
+       <rect>
+        <x>30</x>
+        <y>240</y>
+        <width>331</width>
+        <height>26</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Имя выходного файла</string>
+      </property>
+      <property name="readOnly">
+       <bool>true</bool>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="loopSaveOutputButton">
+      <property name="geometry">
+       <rect>
+        <x>380</x>
+        <y>240</y>
+        <width>81</width>
+        <height>26</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Обзор</string>
+      </property>
+     </widget>
     </widget>
     <widget class="QWidget" name="tab_3">
      <property name="styleSheet">
@@ -560,6 +753,30 @@ QPushButton:pressed {
      <attribute name="title">
       <string>Справка</string>
      </attribute>
+     <widget class="QTextBrowser" name="helpTextBrowser">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>7</y>
+        <width>841</width>
+        <height>341</height>
+       </rect>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">QTextBrowser {
+    background-color: #262633;
+    color: #DCD7BA;
+    border: 1px solid #54546D;
+    border-radius: 6px;
+    padding: 10px;
+    font-size: 13px;
+}
+</string>
+      </property>
+      <property name="openExternalLinks">
+       <bool>true</bool>
+      </property>
+     </widget>
     </widget>
    </widget>
    <widget class="QProgressBar" name="progressBar">
@@ -627,6 +844,14 @@ QPushButton:pressed {
    </property>
   </widget>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>TimelineWidget</class>
+   <extends>QWidget</extends>
+   <header>timelinewidget.h</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
 </ui>

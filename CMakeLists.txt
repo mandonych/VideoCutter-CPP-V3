@@ -25,6 +25,8 @@ qt_add_executable(VideoCutter WIN32
     src/ui/MainWindow.h
     src/ui/MainWindow.cpp
     src/ui/MainWindow.ui
+    src/ui/TimelineWidget.h
+    src/ui/TimelineWidget.cpp
 
     # Video & FFmpeg
     src/video/VideoInfo.h

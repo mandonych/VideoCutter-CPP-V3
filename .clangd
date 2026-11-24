@@ -1,4 +1,5 @@
 
 CompileFlags:
+  CompilationDatabase: build-qt
   Add:
     - -std=c++20

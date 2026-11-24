@@ -1,5 +1,5 @@
 # Папки сборки CMake и Visual Studio
-build/
+build*/
 out/
 .vs/
 CMakeFiles/

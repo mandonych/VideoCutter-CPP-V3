@@ -1,0 +1,632 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>880</width>
+    <height>628</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>MainWindow</string>
+  </property>
+  <property name="styleSheet">
+   <string notr="true">QWidget#centralwidget {
+    background-color: #1E1E28;
+}</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <widget class="QFrame" name="frame">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>20</y>
+      <width>6</width>
+      <height>70</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">QFrame {
+    background-color: #7E9CD8;
+}</string>
+    </property>
+    <property name="frameShape">
+     <enum>QFrame::Shape::NoFrame</enum>
+    </property>
+    <property name="frameShadow">
+     <enum>QFrame::Shadow::Raised</enum>
+    </property>
+   </widget>
+   <widget class="QLabel" name="titleLabel">
+    <property name="geometry">
+     <rect>
+      <x>40</x>
+      <y>20</y>
+      <width>211</width>
+      <height>41</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <family>Segoe UI</family>
+      <pointsize>28</pointsize>
+     </font>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">color: #DCD7BA;</string>
+    </property>
+    <property name="text">
+     <string>Video Cutter</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="subtitleLabel">
+    <property name="geometry">
+     <rect>
+      <x>40</x>
+      <y>60</y>
+      <width>291</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>12</pointsize>
+     </font>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">color: #DCD7BA;</string>
+    </property>
+    <property name="text">
+     <string>Быстрая обрезка без перекодирования</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="logoLabel">
+    <property name="geometry">
+     <rect>
+      <x>780</x>
+      <y>20</y>
+      <width>70</width>
+      <height>70</height>
+     </rect>
+    </property>
+    <property name="cursor">
+     <cursorShape>ArrowCursor</cursorShape>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+    <property name="pixmap">
+     <pixmap>../../resources/images/VideoCutter_icon_256.png</pixmap>
+    </property>
+    <property name="scaledContents">
+     <bool>true</bool>
+    </property>
+    <property name="alignment">
+     <set>Qt::AlignmentFlag::AlignCenter</set>
+    </property>
+   </widget>
+   <widget class="QTabWidget" name="mainTabWidget">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>109</y>
+      <width>861</width>
+      <height>391</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>12</pointsize>
+     </font>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">/* Область содержимого */
+QTabWidget::pane {
+    background-color: #363646;
+    border: 1px solid #7E9CD8;
+    border-radius: 8px;
+}
+
+/* Все вкладки */
+QTabBar::tab {
+    background-color: #2A2A37;
+    color: #938AA9;
+    border: 1px solid #54546D;
+    padding: 5px 22px;
+    min-width: 120px;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+}
+
+/* Активная вкладка */
+QTabBar::tab:selected {
+    background-color: #363646;
+    color: #DCD7BA;
+    border: 1px solid #7E9CD8;
+    border-bottom-color: #363646;
+}
+
+/* Наведение */
+QTabBar::tab:hover:!selected {
+    background-color: #3A3A4A;
+    color: #DCD7BA;
+}</string>
+    </property>
+    <property name="currentIndex">
+     <number>0</number>
+    </property>
+    <widget class="QWidget" name="tab">
+     <property name="styleSheet">
+      <string notr="true">QWidget {
+    background-color: #363646;
+}</string>
+     </property>
+     <attribute name="title">
+      <string>Нарезка видео</string>
+     </attribute>
+     <widget class="QLabel" name="sourceTitleLabel">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>10</y>
+        <width>161</width>
+        <height>16</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>12</pointsize>
+       </font>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">color: #DCD7BA;</string>
+      </property>
+      <property name="text">
+       <string>Исходный видеофайл</string>
+      </property>
+     </widget>
+     <widget class="QLineEdit" name="inputFileEdit">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>34</y>
+        <width>361</width>
+        <height>41</height>
+       </rect>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">QLineEdit {
+    background-color: #1F1F28;
+    color: #DCD7BA;
+    border: 1px solid #54546D;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 13px;
+}</string>
+      </property>
+      <property name="readOnly">
+       <bool>true</bool>
+      </property>
+      <property name="placeholderText">
+       <string>Путь к видеофайлу...</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="browseButton">
+      <property name="geometry">
+       <rect>
+        <x>380</x>
+        <y>30</y>
+        <width>101</width>
+        <height>41</height>
+       </rect>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">QPushButton {
+    background-color: #54546D;
+    color: #DCD7BA;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-size: 13px;
+}
+
+QPushButton:hover {
+    background-color: #62628A;
+}
+
+QPushButton:pressed {
+    background-color: #43435A;
+}</string>
+      </property>
+      <property name="text">
+       <string>Обзор...</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="dropHintLabel">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>80</y>
+        <width>351</width>
+        <height>21</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>10</pointsize>
+        <bold>true</bold>
+       </font>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">color: #76946A;</string>
+      </property>
+      <property name="text">
+       <string>Перетащите видеофайл сюда или нажмите «Обзор»</string>
+      </property>
+     </widget>
+     <widget class="QCheckBox" name="addAudioTrackCheckBox">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>320</y>
+        <width>241</width>
+        <height>24</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>10</pointsize>
+        <bold>true</bold>
+       </font>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">color: #76946A;</string>
+      </property>
+      <property name="text">
+       <string>Добавить пустую аудиодорожку</string>
+      </property>
+      <property name="checked">
+       <bool>false</bool>
+      </property>
+     </widget>
+     <widget class="QLabel" name="startTimeLabel">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>110</y>
+        <width>131</width>
+        <height>21</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>10</pointsize>
+        <bold>true</bold>
+       </font>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">color: #DCD7BA;</string>
+      </property>
+      <property name="text">
+       <string>Начало фрагмента</string>
+      </property>
+     </widget>
+     <widget class="QLineEdit" name="startTimeEdit">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>140</y>
+        <width>231</width>
+        <height>41</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>16</pointsize>
+       </font>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">QLineEdit {
+    background-color: #1F1F28;
+    color: #DCD7BA;
+    border: 1px solid #54546D;
+    border-radius: 6px;
+}</string>
+      </property>
+      <property name="text">
+       <string>00:00:00</string>
+      </property>
+      <property name="maxLength">
+       <number>8</number>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignVCenter</set>
+      </property>
+     </widget>
+     <widget class="QLabel" name="endTimeLabel">
+      <property name="geometry">
+       <rect>
+        <x>260</x>
+        <y>110</y>
+        <width>131</width>
+        <height>21</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>10</pointsize>
+        <bold>true</bold>
+       </font>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">color: #DCD7BA;</string>
+      </property>
+      <property name="text">
+       <string>Конец фрагмента</string>
+      </property>
+     </widget>
+     <widget class="QLineEdit" name="endTimeEdit">
+      <property name="geometry">
+       <rect>
+        <x>250</x>
+        <y>140</y>
+        <width>231</width>
+        <height>41</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>16</pointsize>
+       </font>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">QLineEdit {
+    background-color: #1F1F28;
+    color: #DCD7BA;
+    border: 1px solid #54546D;
+    border-radius: 6px;
+}</string>
+      </property>
+      <property name="text">
+       <string>00:00:00</string>
+      </property>
+      <property name="maxLength">
+       <number>8</number>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignVCenter</set>
+      </property>
+     </widget>
+     <widget class="QLabel" name="outputFileLabel">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>250</y>
+        <width>161</width>
+        <height>16</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>12</pointsize>
+       </font>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">color: #DCD7BA;</string>
+      </property>
+      <property name="text">
+       <string>Выходной видеофайл</string>
+      </property>
+     </widget>
+     <widget class="QLineEdit" name="outputFileEdit">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>270</y>
+        <width>361</width>
+        <height>41</height>
+       </rect>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">QLineEdit {
+    background-color: #1F1F28;
+    color: #DCD7BA;
+    border: 1px solid #54546D;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 13px;
+}</string>
+      </property>
+      <property name="readOnly">
+       <bool>true</bool>
+      </property>
+      <property name="placeholderText">
+       <string>Имя выходного файла</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="saveOutputButton">
+      <property name="geometry">
+       <rect>
+        <x>380</x>
+        <y>270</y>
+        <width>101</width>
+        <height>41</height>
+       </rect>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">QPushButton {
+    background-color: #54546D;
+    color: #DCD7BA;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-size: 13px;
+}
+
+QPushButton:hover {
+    background-color: #62628A;
+}
+
+QPushButton:pressed {
+    background-color: #43435A;
+}</string>
+      </property>
+      <property name="text">
+       <string>Обзор...</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="startFrameLabel">
+      <property name="geometry">
+       <rect>
+        <x>595</x>
+        <y>15</y>
+        <width>250</width>
+        <height>150</height>
+       </rect>
+      </property>
+      <property name="minimumSize">
+       <size>
+        <width>250</width>
+        <height>150</height>
+       </size>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">QLabel {
+    background-color: #262633;
+    color: #938AA9;
+    border: 2px solid #7E9CD8;
+    border-radius: 8px;
+    font-size: 14px;
+}</string>
+      </property>
+      <property name="text">
+       <string>Начальный кадр</string>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignmentFlag::AlignCenter</set>
+      </property>
+     </widget>
+     <widget class="QLabel" name="endFrameLabel">
+      <property name="geometry">
+       <rect>
+        <x>595</x>
+        <y>180</y>
+        <width>250</width>
+        <height>150</height>
+       </rect>
+      </property>
+      <property name="minimumSize">
+       <size>
+        <width>250</width>
+        <height>150</height>
+       </size>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">QLabel {
+    background-color: #262633;
+    color: #938AA9;
+    border: 2px solid #7E9CD8;
+    border-radius: 8px;
+    font-size: 14px;
+}</string>
+      </property>
+      <property name="text">
+       <string>Конечный кадр</string>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignmentFlag::AlignCenter</set>
+      </property>
+     </widget>
+    </widget>
+    <widget class="QWidget" name="tab_2">
+     <property name="styleSheet">
+      <string notr="true">QWidget {
+    background-color: #363646;
+}</string>
+     </property>
+     <attribute name="title">
+      <string>Зацикливание</string>
+     </attribute>
+    </widget>
+    <widget class="QWidget" name="tab_3">
+     <property name="styleSheet">
+      <string notr="true">QWidget {
+    background-color: #363646;
+}</string>
+     </property>
+     <attribute name="title">
+      <string>Справка</string>
+     </attribute>
+    </widget>
+   </widget>
+   <widget class="QProgressBar" name="progressBar">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>530</y>
+      <width>661</width>
+      <height>23</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">QProgressBar {
+    background-color: #262633;
+    border: 1px solid #DCD7BA;
+    border-radius: 2px;
+}
+
+QProgressBar::chunk {
+    background-color: #7E9CD8;
+}</string>
+    </property>
+    <property name="value">
+     <number>0</number>
+    </property>
+    <property name="textVisible">
+     <bool>false</bool>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="cutButton">
+    <property name="geometry">
+     <rect>
+      <x>690</x>
+      <y>520</y>
+      <width>181</width>
+      <height>41</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">QPushButton {
+    background-color: #363646;
+    color: #DCD7BA;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+}
+
+QPushButton:hover {
+    background-color: #54546D;
+}
+
+QPushButton:pressed {
+    background-color: #2A2A37;
+}</string>
+    </property>
+    <property name="text">
+     <string>Обрезать видео</string>
+    </property>
+   </widget>
+  </widget>
+  <widget class="QMenuBar" name="menubar"/>
+  <widget class="QStatusBar" name="statusbar">
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
+  </widget>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

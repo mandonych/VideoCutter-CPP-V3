@@ -1,5 +1,5 @@
 #include <windows.h>
 
 // Иконка приложения для Проводника и панели задач
-1 ICON "../VideoCutter.ico"
+1 ICON "../resources/icons/VideoCutter.ico"
 

@@ -51,6 +51,7 @@ qt_add_resources(VideoCutter "app_resources"
     PREFIX "/"
     FILES
         resources/images/VideoCutter_icon_256.png
+        resources/icons/VideoCutter.ico
 )
 
 

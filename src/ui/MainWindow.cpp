@@ -17,6 +17,8 @@ MainWindow::MainWindow(QWidget *parent)
     ui->setupUi(this);
 
     ui->logoLabel->setPixmap(QPixmap(":/resources/images/VideoCutter_icon_256.png"));
+    setWindowIcon(QIcon(":/resources/icons/VideoCutter.ico"));
+
 
 
     setWindowTitle("Video Cutter");
@@ -130,6 +132,8 @@ void MainWindow::loadInputVideo(const QString &filePath) {
                            .arg(formatTime(m_videoInfo.duration));
         if (m_videoInfo.hasAudio) {
             info += QString(" | Audio: %1").arg(m_videoInfo.audioCodec);
+        } else {
+            info += " | Audio: —";
         }
 
         ui->dropHintLabel->setText(info);
@@ -335,11 +339,24 @@ void MainWindow::onTabChanged(int index) {
     ui->progressBar->setVisible(!isHelpTab);
     ui->cutButton->setVisible(!isHelpTab);
 
+    // Берем текущие координаты mainTabWidget (x=10, y=109, width=861)
+    QRect tabGeom = ui->mainTabWidget->geometry();
+
     if (isHelpTab) {
-        ui->mainTabWidget->resize(ui->mainTabWidget->width(), 470);
+        tabGeom.setHeight(470);
+        ui->mainTabWidget->setGeometry(tabGeom);
         ui->subtitleLabel->setText("Краткая инструкция");
+
+        // Принудительно обновляем геометрию внутренней страницы вкладки
+        ui->mainTabWidget->updateGeometry();
+        if (ui->tab_3->layout()) {
+            ui->tab_3->layout()->invalidate();
+            ui->tab_3->layout()->activate();
+        }
     } else {
-        ui->mainTabWidget->resize(ui->mainTabWidget->width(), 391);
+        tabGeom.setHeight(391);
+        ui->mainTabWidget->setGeometry(tabGeom);
+
         if (index == 0) {
             ui->subtitleLabel->setText("Быстрая обрезка без перекодирования");
             ui->cutButton->setText("Обрезать видео");
@@ -349,6 +366,7 @@ void MainWindow::onTabChanged(int index) {
         }
     }
 }
+
 
 void MainWindow::loadHelpText() {
     QString readmePath = QDir(QCoreApplication::applicationDirPath()).filePath("README.md");

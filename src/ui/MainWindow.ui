@@ -10,6 +10,18 @@
     <height>628</height>
    </rect>
   </property>
+  <property name="minimumSize">
+   <size>
+    <width>880</width>
+    <height>628</height>
+   </size>
+  </property>
+  <property name="maximumSize">
+   <size>
+    <width>880</width>
+    <height>628</height>
+   </size>
+  </property>
   <property name="windowTitle">
    <string>MainWindow</string>
   </property>
@@ -67,13 +79,13 @@
      <rect>
       <x>40</x>
       <y>60</y>
-      <width>291</width>
+      <width>371</width>
       <height>31</height>
      </rect>
     </property>
     <property name="font">
      <font>
-      <pointsize>12</pointsize>
+      <pointsize>15</pointsize>
      </font>
     </property>
     <property name="styleSheet">
@@ -86,7 +98,7 @@
    <widget class="QLabel" name="logoLabel">
     <property name="geometry">
      <rect>
-      <x>780</x>
+      <x>792</x>
       <y>20</y>
       <width>70</width>
       <height>70</height>
@@ -94,6 +106,9 @@
     </property>
     <property name="cursor">
      <cursorShape>ArrowCursor</cursorShape>
+    </property>
+    <property name="frameShape">
+     <enum>QFrame::Shape::NoFrame</enum>
     </property>
     <property name="text">
      <string/>
@@ -114,7 +129,7 @@
       <x>10</x>
       <y>109</y>
       <width>861</width>
-      <height>391</height>
+      <height>401</height>
      </rect>
     </property>
     <property name="font">
@@ -156,7 +171,7 @@ QTabBar::tab:hover:!selected {
 }</string>
     </property>
     <property name="currentIndex">
-     <number>1</number>
+     <number>0</number>
     </property>
     <widget class="QWidget" name="tab">
      <property name="styleSheet">
@@ -193,7 +208,7 @@ QTabBar::tab:hover:!selected {
        <rect>
         <x>10</x>
         <y>34</y>
-        <width>361</width>
+        <width>441</width>
         <height>41</height>
        </rect>
       </property>
@@ -217,11 +232,16 @@ QTabBar::tab:hover:!selected {
      <widget class="QPushButton" name="browseButton">
       <property name="geometry">
        <rect>
-        <x>380</x>
-        <y>30</y>
+        <x>470</x>
+        <y>34</y>
         <width>101</width>
         <height>41</height>
        </rect>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>-1</pointsize>
+       </font>
       </property>
       <property name="styleSheet">
        <string notr="true">QPushButton {
@@ -230,7 +250,7 @@ QTabBar::tab:hover:!selected {
     border: none;
     border-radius: 6px;
     padding: 8px 16px;
-    font-size: 13px;
+    font-size: 15px;
 }
 
 QPushButton:hover {
@@ -319,7 +339,7 @@ QPushButton:pressed {
        <rect>
         <x>10</x>
         <y>140</y>
-        <width>231</width>
+        <width>215</width>
         <height>41</height>
        </rect>
       </property>
@@ -349,7 +369,7 @@ QPushButton:pressed {
      <widget class="QLabel" name="endTimeLabel">
       <property name="geometry">
        <rect>
-        <x>260</x>
+        <x>230</x>
         <y>110</y>
         <width>131</width>
         <height>21</height>
@@ -371,9 +391,9 @@ QPushButton:pressed {
      <widget class="QLineEdit" name="endTimeEdit">
       <property name="geometry">
        <rect>
-        <x>250</x>
+        <x>230</x>
         <y>140</y>
-        <width>231</width>
+        <width>215</width>
         <height>41</height>
        </rect>
       </property>
@@ -403,8 +423,8 @@ QPushButton:pressed {
      <widget class="QLabel" name="outputFileLabel">
       <property name="geometry">
        <rect>
-        <x>10</x>
-        <y>250</y>
+        <x>12</x>
+        <y>244</y>
         <width>161</width>
         <height>16</height>
        </rect>
@@ -426,7 +446,7 @@ QPushButton:pressed {
        <rect>
         <x>10</x>
         <y>270</y>
-        <width>361</width>
+        <width>441</width>
         <height>41</height>
        </rect>
       </property>
@@ -450,11 +470,16 @@ QPushButton:pressed {
      <widget class="QPushButton" name="saveOutputButton">
       <property name="geometry">
        <rect>
-        <x>380</x>
+        <x>470</x>
         <y>270</y>
         <width>101</width>
         <height>41</height>
        </rect>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>-1</pointsize>
+       </font>
       </property>
       <property name="styleSheet">
        <string notr="true">QPushButton {
@@ -463,7 +488,7 @@ QPushButton:pressed {
     border: none;
     border-radius: 6px;
     padding: 8px 16px;
-    font-size: 13px;
+    font-size: 15px;
 }
 
 QPushButton:hover {
@@ -499,7 +524,7 @@ QPushButton:pressed {
     color: #938AA9;
     border: 2px solid #7E9CD8;
     border-radius: 8px;
-    font-size: 14px;
+    font-size: 15px;
 }</string>
       </property>
       <property name="text">
@@ -530,7 +555,7 @@ QPushButton:pressed {
     color: #938AA9;
     border: 2px solid #7E9CD8;
     border-radius: 8px;
-    font-size: 14px;
+    font-size: 15px;
 }</string>
       </property>
       <property name="text">
@@ -545,7 +570,7 @@ QPushButton:pressed {
        <rect>
         <x>10</x>
         <y>190</y>
-        <width>471</width>
+        <width>441</width>
         <height>31</height>
        </rect>
       </property>
@@ -572,11 +597,21 @@ QPushButton:pressed {
      <widget class="QLineEdit" name="loopInputFileEdit">
       <property name="geometry">
        <rect>
-        <x>30</x>
-        <y>20</y>
-        <width>281</width>
-        <height>26</height>
+        <x>10</x>
+        <y>34</y>
+        <width>441</width>
+        <height>41</height>
        </rect>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">QLineEdit {
+    background-color: #1F1F28;
+    color: #DCD7BA;
+    border: 1px solid #54546D;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 13px;
+}</string>
       </property>
       <property name="readOnly">
        <bool>true</bool>
@@ -588,24 +623,51 @@ QPushButton:pressed {
      <widget class="QPushButton" name="loopBrowseButton">
       <property name="geometry">
        <rect>
-        <x>360</x>
-        <y>20</y>
-        <width>81</width>
-        <height>26</height>
+        <x>470</x>
+        <y>34</y>
+        <width>101</width>
+        <height>41</height>
        </rect>
       </property>
+      <property name="styleSheet">
+       <string notr="true">QPushButton {
+    background-color: #54546D;
+    color: #DCD7BA;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-size: 15px;
+}
+
+QPushButton:hover {
+    background-color: #62628A;
+}
+
+QPushButton:pressed {
+    background-color: #43435A;
+}</string>
+      </property>
       <property name="text">
-       <string>Обзор</string>
+       <string>Обзор...</string>
       </property>
      </widget>
      <widget class="QLabel" name="loopInfoLabel">
       <property name="geometry">
        <rect>
-        <x>40</x>
-        <y>60</y>
-        <width>301</width>
-        <height>16</height>
+        <x>10</x>
+        <y>80</y>
+        <width>351</width>
+        <height>21</height>
        </rect>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>10</pointsize>
+        <bold>true</bold>
+       </font>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">color: #76946A;</string>
       </property>
       <property name="text">
        <string>Перетащите видеофайл сюда или нажмите «Обзор»</string>
@@ -614,14 +676,50 @@ QPushButton:pressed {
      <widget class="QRadioButton" name="loopByDurationRadio">
       <property name="geometry">
        <rect>
-        <x>40</x>
-        <y>90</y>
-        <width>171</width>
+        <x>26</x>
+        <y>114</y>
+        <width>163</width>
         <height>24</height>
        </rect>
       </property>
+      <property name="font">
+       <font>
+        <pointsize>-1</pointsize>
+       </font>
+      </property>
       <property name="styleSheet">
-       <string notr="true"/>
+       <string notr="true">QRadioButton {
+    color: #DCD7BA;
+    spacing: 8px;
+    font-size: 15px;
+}
+
+QRadioButton::indicator {
+    width: 14px;
+    height: 14px;
+    border-radius: 9px; /* Половина от (width + 2*border) = (14 + 4)/2 = 9px для ровного круга */
+    border: 2px solid #7E9CD8;
+    background-color: #363646;
+}
+
+QRadioButton::indicator:hover {
+    border-color: #9CABCA;
+    background-color: #363646;
+}
+
+/* Состояние &quot;Выбрано&quot; — маркер цвета #DCD7BA */
+QRadioButton::indicator:checked {
+    border: 2px solid #7E9CD8;
+    background-color: qradialgradient(
+        cx: 0.5, cy: 0.5, radius: 0.4,
+        fx: 0.5, fy: 0.5,
+        stop: 0.0 #DCD7BA,
+        stop: 0.6 #DCD7BA,
+        stop: 0.7 #1F1F28,
+        stop: 1.0 #1F1F28
+    );
+}
+</string>
       </property>
       <property name="text">
        <string>По длительности</string>
@@ -636,11 +734,49 @@ QPushButton:pressed {
      <widget class="QRadioButton" name="loopBySizeRadio">
       <property name="geometry">
        <rect>
-        <x>230</x>
-        <y>90</y>
-        <width>131</width>
+        <x>192</x>
+        <y>114</y>
+        <width>163</width>
         <height>24</height>
        </rect>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>-1</pointsize>
+       </font>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">QRadioButton {
+    color: #DCD7BA;
+    spacing: 8px;
+    font-size: 15px;
+}
+
+QRadioButton::indicator {
+    width: 14px;
+    height: 14px;
+    border-radius: 9px; /* Половина от (width + 2*border) = (14 + 4)/2 = 9px для ровного круга */
+    border: 2px solid #7E9CD8;
+    background-color: #363646;
+}
+
+QRadioButton::indicator:hover {
+    border-color: #9CABCA;
+    background-color: #363646;
+}
+
+/* Состояние &quot;Выбрано&quot; — маркер цвета #DCD7BA */
+QRadioButton::indicator:checked {
+    border: 2px solid #7E9CD8;
+    background-color: qradialgradient(
+        cx: 0.5, cy: 0.5, radius: 0.4,
+        fx: 0.5, fy: 0.5,
+        stop: 0.0 #DCD7BA,
+        stop: 0.6 #DCD7BA,
+        stop: 0.7 #1F1F28,
+        stop: 1.0 #1F1F28
+    );
+}</string>
       </property>
       <property name="text">
        <string>По размеру (МБ)</string>
@@ -649,11 +785,20 @@ QPushButton:pressed {
      <widget class="QLabel" name="loopTargetLabel">
       <property name="geometry">
        <rect>
-        <x>40</x>
-        <y>120</y>
-        <width>211</width>
+        <x>12</x>
+        <y>154</y>
+        <width>237</width>
         <height>16</height>
        </rect>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>10</pointsize>
+        <bold>true</bold>
+       </font>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">color: #76946A;</string>
       </property>
       <property name="text">
        <string>Целевая длительность (ЧЧ:ММ:СС)</string>
@@ -662,11 +807,24 @@ QPushButton:pressed {
      <widget class="QLineEdit" name="loopTargetEdit">
       <property name="geometry">
        <rect>
-        <x>40</x>
-        <y>150</y>
+        <x>10</x>
+        <y>182</y>
         <width>181</width>
-        <height>26</height>
+        <height>41</height>
        </rect>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>16</pointsize>
+       </font>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">QLineEdit {
+    background-color: #1F1F28;
+    color: #DCD7BA;
+    border: 1px solid #54546D;
+    border-radius: 6px;
+}</string>
       </property>
       <property name="text">
        <string>00:10:00</string>
@@ -678,11 +836,19 @@ QPushButton:pressed {
      <widget class="QLabel" name="loopResultDurationLabel">
       <property name="geometry">
        <rect>
-        <x>570</x>
-        <y>60</y>
-        <width>201</width>
+        <x>392</x>
+        <y>116</y>
+        <width>209</width>
         <height>16</height>
        </rect>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>12</pointsize>
+       </font>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">color: #DCD7BA;</string>
       </property>
       <property name="text">
        <string>Длительность: —</string>
@@ -691,11 +857,19 @@ QPushButton:pressed {
      <widget class="QLabel" name="loopResultSizeLabel">
       <property name="geometry">
        <rect>
-        <x>570</x>
-        <y>100</y>
-        <width>121</width>
+        <x>390</x>
+        <y>154</y>
+        <width>215</width>
         <height>16</height>
        </rect>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>12</pointsize>
+       </font>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">color: #DCD7BA;</string>
       </property>
       <property name="text">
        <string>Размер файла: —</string>
@@ -704,11 +878,19 @@ QPushButton:pressed {
      <widget class="QLabel" name="loopResultRepeatsLabel">
       <property name="geometry">
        <rect>
-        <x>570</x>
-        <y>140</y>
-        <width>151</width>
+        <x>332</x>
+        <y>192</y>
+        <width>275</width>
         <height>16</height>
        </rect>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>12</pointsize>
+       </font>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">color: #DCD7BA;</string>
       </property>
       <property name="text">
        <string>Количество повторов: —</string>
@@ -717,30 +899,82 @@ QPushButton:pressed {
      <widget class="QLineEdit" name="loopOutputFileEdit">
       <property name="geometry">
        <rect>
-        <x>30</x>
-        <y>240</y>
-        <width>331</width>
-        <height>26</height>
+        <x>10</x>
+        <y>270</y>
+        <width>441</width>
+        <height>41</height>
        </rect>
       </property>
+      <property name="styleSheet">
+       <string notr="true">QLineEdit {
+    background-color: #1F1F28;
+    color: #DCD7BA;
+    border: 1px solid #54546D;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 13px;
+}</string>
+      </property>
       <property name="text">
-       <string>Имя выходного файла</string>
+       <string/>
       </property>
       <property name="readOnly">
        <bool>true</bool>
+      </property>
+      <property name="placeholderText">
+       <string>Имя выходного файла</string>
       </property>
      </widget>
      <widget class="QPushButton" name="loopSaveOutputButton">
       <property name="geometry">
        <rect>
-        <x>380</x>
-        <y>240</y>
-        <width>81</width>
-        <height>26</height>
+        <x>470</x>
+        <y>274</y>
+        <width>101</width>
+        <height>41</height>
        </rect>
       </property>
+      <property name="styleSheet">
+       <string notr="true">QPushButton {
+    background-color: #54546D;
+    color: #DCD7BA;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-size: 15px;
+}
+
+QPushButton:hover {
+    background-color: #62628A;
+}
+
+QPushButton:pressed {
+    background-color: #43435A;
+}</string>
+      </property>
       <property name="text">
-       <string>Обзор</string>
+       <string>Обзор...</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="loopSourceTitleLabel">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>10</y>
+        <width>161</width>
+        <height>16</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>12</pointsize>
+       </font>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">color: #DCD7BA;</string>
+      </property>
+      <property name="text">
+       <string>Исходный видеофайл</string>
       </property>
      </widget>
     </widget>
@@ -753,17 +987,11 @@ QPushButton:pressed {
      <attribute name="title">
       <string>Справка</string>
      </attribute>
-     <widget class="QTextBrowser" name="helpTextBrowser">
-      <property name="geometry">
-       <rect>
-        <x>10</x>
-        <y>7</y>
-        <width>841</width>
-        <height>341</height>
-       </rect>
-      </property>
-      <property name="styleSheet">
-       <string notr="true">QTextBrowser {
+     <layout class="QVBoxLayout" name="verticalLayout">
+      <item>
+       <widget class="QTextBrowser" name="helpTextBrowser">
+        <property name="styleSheet">
+         <string notr="true">QTextBrowser {
     background-color: #262633;
     color: #DCD7BA;
     border: 1px solid #54546D;
@@ -772,18 +1000,20 @@ QPushButton:pressed {
     font-size: 13px;
 }
 </string>
-      </property>
-      <property name="openExternalLinks">
-       <bool>true</bool>
-      </property>
-     </widget>
+        </property>
+        <property name="openExternalLinks">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+     </layout>
     </widget>
    </widget>
    <widget class="QProgressBar" name="progressBar">
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>530</y>
+      <y>540</y>
       <width>661</width>
       <height>23</height>
      </rect>
@@ -810,7 +1040,7 @@ QProgressBar::chunk {
     <property name="geometry">
      <rect>
       <x>690</x>
-      <y>520</y>
+      <y>530</y>
       <width>181</width>
       <height>41</height>
      </rect>
@@ -821,7 +1051,7 @@ QProgressBar::chunk {
     color: #DCD7BA;
     border: none;
     border-radius: 6px;
-    font-size: 16px;
+    font-size: 15px;
 }
 
 QPushButton:hover {

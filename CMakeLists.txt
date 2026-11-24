@@ -16,6 +16,7 @@ find_package(Qt6 REQUIRED COMPONENTS Widgets Concurrent)
 # Автоматически настраивает AUTOMOC, AUTORCC и AUTOUIC (для .ui файлов)
 qt_standard_project_setup()
 
+
 # Флаг WIN32 убирает консольное окно при запуске приложения
 qt_add_executable(VideoCutter WIN32
     src/main.cpp
@@ -44,6 +45,15 @@ target_link_libraries(VideoCutter PRIVATE
     Qt6::Widgets
     Qt6::Concurrent
 )
+
+# Встраиваем изображения и ресурсы прямо внутрь исполняемого файла
+qt_add_resources(VideoCutter "app_resources"
+    PREFIX "/"
+    FILES
+        resources/images/VideoCutter_icon_256.png
+)
+
+
 
 # Автоматическое копирование необходимых DLL от Qt после сборки (windeployqt)
 if(WIN32)

@@ -16,6 +16,9 @@ MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), ui(new Ui::MainWindow), m_processor(new VideoProcessor(this)) {
     ui->setupUi(this);
 
+    ui->logoLabel->setPixmap(QPixmap(":/resources/images/VideoCutter_icon_256.png"));
+
+
     setWindowTitle("Video Cutter");
     setAcceptDrops(true);
 

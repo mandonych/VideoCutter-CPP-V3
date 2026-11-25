@@ -1,4 +1,5 @@
 {
     "cmake.useCMakePresets": "never",
+    "cmake.generator": "Ninja",
     "cmake.buildDirectory": "${workspaceFolder}/build-qt"
 }

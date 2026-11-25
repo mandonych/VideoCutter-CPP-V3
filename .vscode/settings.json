@@ -1,11 +1,4 @@
-
 {
     "cmake.useCMakePresets": "never",
-    "cmake.generator": "Ninja",
-    "cmake.buildDirectory": "${workspaceFolder}/build-qt",
-    "cmake.ninjaPath": "C:/Program Files (x86)/Microsoft Visual Studio/18/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe",
-    "cmake.configureSettings": {
-        "CMAKE_PREFIX_PATH": "C:/Qt/6.12.1/msvc2022_64",
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
-    }
+    "cmake.buildDirectory": "${workspaceFolder}/build-qt"
 }

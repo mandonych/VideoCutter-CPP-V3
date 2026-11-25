@@ -64,7 +64,7 @@
     └── translations/
         └── qt_ru.qm
 
-Скачать актуальную сборку FFmpeg можно по ссылке: [Скачать FFmpeg Essentials (.7z)](https://gyan.dev).
+Скачать актуальную сборку FFmpeg можно по ссылке: [Скачать FFmpeg Essentials (.7z)](https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.7z).
 
 ## Интерфейс программы
 

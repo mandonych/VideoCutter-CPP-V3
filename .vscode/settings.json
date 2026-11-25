@@ -1,3 +1,4 @@
 {
+    "cmake.useCMakePresets": "never",
     "cmake.buildDirectory": "${workspaceFolder}/build-win32"
 }

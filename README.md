@@ -48,13 +48,19 @@
     ├── README.md
     ├── Qt6Core.dll
     ├── Qt6Gui.dll
+    ├── Qt6Network.dll
     ├── Qt6Widgets.dll
-    ├── Qt6Concurrent.dll
     ├── bin/
     │   ├── ffmpeg.exe
     │   └── ffprobe.exe
+    ├── imageformats/
+    │   ├── qgif.dll
+    │   ├── qico.dll
+    │   └── qjpeg.dll
     ├── platforms/
     │   └── qwindows.dll
+    ├── styles/
+    │   └── qmodernwindowsstyle.dll
     └── translations/
         └── qt_ru.qm
 

@@ -103,3 +103,19 @@ add_custom_target(copy_readme ALL
     COMMENT "Updating README.md in build directory..."
     VERBATIM
 )
+
+    # Удаляем тяжелые шейдерные библиотеки 3D и неиспользуемые плагины сети/сенсора
+    add_custom_command(TARGET VideoCutter POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E remove -f
+            "$<TARGET_FILE_DIR:VideoCutter>/d3dcompiler_47.dll"
+            "$<TARGET_FILE_DIR:VideoCutter>/dxcompiler.dll"
+            "$<TARGET_FILE_DIR:VideoCutter>/dxil.dll"
+        COMMAND ${CMAKE_COMMAND} -E remove_directory
+            "$<TARGET_FILE_DIR:VideoCutter>/generic"
+        COMMAND ${CMAKE_COMMAND} -E remove_directory
+            "$<TARGET_FILE_DIR:VideoCutter>/networkinformation"
+        COMMAND ${CMAKE_COMMAND} -E remove_directory
+            "$<TARGET_FILE_DIR:VideoCutter>/tls"
+        COMMENT "Cleaning up unused Qt 6 deployment files..."
+        VERBATIM
+    )

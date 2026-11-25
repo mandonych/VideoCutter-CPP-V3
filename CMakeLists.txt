@@ -67,14 +67,17 @@ if(WIN32)
     add_custom_command(TARGET VideoCutter POST_BUILD
         COMMAND "${WINDEPLOYQT_EXECUTABLE}"
             "$<IF:$<CONFIG:Debug>,--debug,--release>"
+            --no-opengl-sw
+            --no-compiler-runtime
+            --no-svg
             --dir "$<TARGET_FILE_DIR:VideoCutter>"
             "$<TARGET_FILE:VideoCutter>"
-        COMMENT "Deploying Qt libraries..."
+        COMMENT "Deploying Qt libraries (with translations)..."
         VERBATIM
     )
 endif()
 
-# Копирование утилит FFmpeg в папку bin рядом с собранным VideoCutter.exe
+# Копирование только нужных утилит FFmpeg (без ffplay.exe)
 add_custom_command(TARGET VideoCutter POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory
         "$<TARGET_FILE_DIR:VideoCutter>/bin"
@@ -87,10 +90,16 @@ add_custom_command(TARGET VideoCutter POST_BUILD
         "${CMAKE_SOURCE_DIR}/bin/ffprobe.exe"
         "$<TARGET_FILE_DIR:VideoCutter>/bin/ffprobe.exe"
 
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${CMAKE_SOURCE_DIR}/bin/ffplay.exe"
-        "$<TARGET_FILE_DIR:VideoCutter>/bin/ffplay.exe"
-
     COMMENT "Copying FFmpeg utilities..."
+    VERBATIM
+)
+
+# Всегда обновляет README.md в папке сборки при нажатии F7
+add_custom_target(copy_readme ALL
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_SOURCE_DIR}/README.md"
+        "$<TARGET_FILE_DIR:VideoCutter>/README.md"
+    DEPENDS "${CMAKE_SOURCE_DIR}/README.md"
+    COMMENT "Updating README.md in build directory..."
     VERBATIM
 )
